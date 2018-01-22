@@ -1,0 +1,299 @@
+---
+title: "Rosenbluh Sim"
+author: "Timothy Daley"
+date: "1/17/2018"
+output: html_document
+---
+
+```{r}
+Rosenbluh2017CRISPRkoANDi = read.table(file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRkoANDi.txt", header = TRUE)
+set.seed(123)
+Rosenbluh2017CRISPRi = Rosenbluh2017CRISPRkoANDi[which(Rosenbluh2017CRISPRkoANDi$Category %in% c("TSS", "control")), c(1:9, 12:13)]
+dim(Rosenbluh2017CRISPRi)
+hist(rowSums(Rosenbluh2017CRISPRi[,c("DNA_Pool", "HT29_dCas9_pLX311_Rep1", "HT29_dCas9_pLX311_Rep2")]), breaks = 100)
+Rosenbluh2017CRISPRi = Rosenbluh2017CRISPRi[-which(rowSums(Rosenbluh2017CRISPRi[,c("DNA_Pool", "HT29_dCas9_pLX311_Rep1", "HT29_dCas9_pLX311_Rep2")]) < 300), ]
+dim(Rosenbluh2017CRISPRi)
+```
+```{r message=FALSE}
+library(DESeq2)
+library(ggplot2)
+library(ggjoy)
+gene.ids = Rosenbluh2017CRISPRi$Gene
+gene.counts = c(table(gene.ids[-which(is.na(gene.ids))]))
+library(fitdistrplus)
+gene.counts.nb.fit = fitdist(gene.counts, "nbinom") 
+gene.counts.nb.fit
+neg.gene.counts = rnbinom(3*length(gene.counts), 
+                          mu = gene.counts.nb.fit$estimate[2], 
+                          size = gene.counts.nb.fit$estimate[1])
+Rosenbluh2017CRISPRi.negctrl = Rosenbluh2017CRISPRi[which(is.na(Rosenbluh2017CRISPRi$Gene)), ]
+n.negctrl = dim(Rosenbluh2017CRISPRi.negctrl)[1]
+Rosenbluh2017CRISPRi.neg.sim = c()
+for(i in 1:length(neg.gene.counts)){
+  for(j in 1:neg.gene.counts[i]){
+    rand.index = sample.int(n.negctrl, 1)
+    Rosenbluh2017CRISPRi.neg.sim = rbind(Rosenbluh2017CRISPRi.neg.sim, 
+                                         c("sim", paste0("sim", i), "NA", "sim", "NA", 0, 0, "+",
+                                           rnbinom(1, mu = Rosenbluh2017CRISPRi.negctrl$DNA_Pool[rand.index], size = 200),
+                                           rnbinom(1, mu = Rosenbluh2017CRISPRi.negctrl$HT29_dCas9_pLX311_Rep1[rand.index], size = 200),
+                                           rnbinom(1, mu = Rosenbluh2017CRISPRi.negctrl$HT29_dCas9_pLX311_Rep2[rand.index], size = 200)))
+  }
+}
+Rosenbluh2017CRISPRi.sim = data.frame(Cell_line = c(sapply(Rosenbluh2017CRISPRi$Cell_line, toString), Rosenbluh2017CRISPRi.neg.sim[,1]),
+                                      Gene = c(sapply(Rosenbluh2017CRISPRi$Gene, toString), Rosenbluh2017CRISPRi.neg.sim[,2]),
+                                      Spacer = c(sapply(Rosenbluh2017CRISPRi$Spacer, toString), paste0("sim", 1:length(Rosenbluh2017CRISPRi.neg.sim[,3]))),
+                                      Category = c(sapply(Rosenbluh2017CRISPRi$Category, toString), Rosenbluh2017CRISPRi.neg.sim[,4]), 
+                                      Chr = c(sapply(Rosenbluh2017CRISPRi$Chr, toString), Rosenbluh2017CRISPRi.neg.sim[,5]),
+                                      Start = c(Rosenbluh2017CRISPRi$Start, Rosenbluh2017CRISPRi.neg.sim[,6]),
+                                      End = c(Rosenbluh2017CRISPRi$End, Rosenbluh2017CRISPRi.neg.sim[,7]),
+                                      Strand = c(sapply(Rosenbluh2017CRISPRi$Strand, toString), Rosenbluh2017CRISPRi.neg.sim[,8]),
+                                      DNA_Pool = as.numeric(c(Rosenbluh2017CRISPRi$DNA_Pool, Rosenbluh2017CRISPRi.neg.sim[,9])),
+                                      HT29_dCas9_pLX311_Rep1 = as.numeric(c(Rosenbluh2017CRISPRi$HT29_dCas9_pLX311_Rep1, Rosenbluh2017CRISPRi.neg.sim[,10])),
+                                      HT29_dCas9_pLX311_Rep2 = as.numeric(c(Rosenbluh2017CRISPRi$HT29_dCas9_pLX311_Rep2, Rosenbluh2017CRISPRi.neg.sim[,11])))
+Rosenbluh2017CRISPRi.sim = Rosenbluh2017CRISPRi.sim[which(rowSums(Rosenbluh2017CRISPRi.sim[,9:11]) > 300), ]
+Rosenbluh2017CRISPRi.sim.counts = Rosenbluh2017CRISPRi.sim[,c(9:11)]
+rownames(Rosenbluh2017CRISPRi.sim.counts) = Rosenbluh2017CRISPRi.sim$Spacer
+coldata = data.frame(condition = c(0, 1, 1))
+rownames(coldata) = colnames(Rosenbluh2017CRISPRi.sim.counts)
+Rosenbluh2017CRISPRi.sim.DESeq = DESeq2::DESeqDataSetFromMatrix(countData = Rosenbluh2017CRISPRi.sim.counts, 
+                                                                colData = coldata, 
+                                                                design = ~ condition)
+Rosenbluh2017CRISPRi.sim.DESeq = DESeq2::DESeq(Rosenbluh2017CRISPRi.sim.DESeq)
+Rosenbluh2017CRISPRi.sim.DESeq = DESeq2::results(Rosenbluh2017CRISPRi.sim.DESeq)
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc = Rosenbluh2017CRISPRi.sim.DESeq$log2FoldChange
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene = Rosenbluh2017CRISPRi.sim$Gene
+length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim$Category != "control")])
+```
+```{r message = FALSE}
+Rosenbluh2017CRISPRi.sim.essential = data.frame(gene = unique(Rosenbluh2017CRISPRi.sim$Gene), 
+                                                essential = 1 - grepl("sim", unique(Rosenbluh2017CRISPRi.sim$Gene)))
+Rosenbluh2017CRISPRi.sim.essential = Rosenbluh2017CRISPRi.sim.essential[-which(Rosenbluh2017CRISPRi.sim.essential$gene == "NA"), ]
+write.table(Rosenbluh2017CRISPRi.sim[which(Rosenbluh2017CRISPRi.sim$Category != "control"), c("Spacer", "Gene", "DNA_Pool", "HT29_dCas9_pLX311_Rep1", "HT29_dCas9_pLX311_Rep2")],  
+            file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSim.txt",
+            quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+write.table(Rosenbluh2017CRISPRi.sim[which(Rosenbluh2017CRISPRi.sim$Category == "control"), c("Spacer", "Gene", "DNA_Pool", "HT29_dCas9_pLX311_Rep1", "HT29_dCas9_pLX311_Rep2")],  
+            file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControl.txt",
+            quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+```
+```{r message=FALSE}
+system("~/sgRNA/sgRNA2Groups/data/mageck/mageck-0.5.6/bin/mageck test -k ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSim.txt -t HT29_dCas9_pLX311_Rep1,HT29_dCas9_pLX311_Rep2 --output-prefix ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl")
+Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary = read.table(file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary.txt", header = TRUE)
+Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary = Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary[match(Rosenbluh2017CRISPRi.sim.essential$gene, Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary$id), ]
+dim(Rosenbluh2017CRISPRiSimMageckRraNoNegCtrl.gene_summary)
+```
+```{r message=FALSE}
+system("~/sgRNA/sgRNA2Groups/data/mageck/mageck-0.5.6/bin/mageck test -k ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSim.txt -t HT29_dCas9_pLX311_Rep1,HT29_dCas9_pLX311_Rep2 --output-prefix ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckRra --control-sgrna ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControl.txt")
+Rosenbluh2017CRISPRiSimMageckRra.gene_summary = read.table(file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckRra.gene_summary.txt", header = TRUE)
+Rosenbluh2017CRISPRiSimMageckRra.gene_summary = Rosenbluh2017CRISPRiSimMageckRra.gene_summary[match(Rosenbluh2017CRISPRi.sim.essential$gene, Rosenbluh2017CRISPRiSimMageckRra.gene_summary$id), ]
+dim(Rosenbluh2017CRISPRiSimMageckRra.gene_summary)
+```
+```{r message=FALSE}
+system("~/sgRNA/sgRNA2Groups/data/mageck/mageck-0.5.6/bin/mageck mle -k ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSim.txt -d ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/design_matrix.txt --output-prefix ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMle --control-sgrna ~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControl.txt")
+Rosenbluh2017CRISPRiSimMageckMle.gene_summary = read.table(file = "~/sgRNA/sgRNA2Groups/data/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMle.gene_summary.txt", header = TRUE)
+dim(Rosenbluh2017CRISPRiSimMageckMle.gene_summary)
+dim(Rosenbluh2017CRISPRi.sim.essential)
+Rosenbluh2017CRISPRiSimMageckMle.gene_summary = Rosenbluh2017CRISPRiSimMageckMle.gene_summary[match(Rosenbluh2017CRISPRi.sim.essential$gene, Rosenbluh2017CRISPRiSimMageckMle.gene_summary$Gene), ]
+dim(Rosenbluh2017CRISPRiSimMageckMle.gene_summary)
+```
+```{r message=FALSE}
+x = data.frame(log2fc = Rosenbluh2017CRISPRi.sim.DESeq.log2fc, category = Rosenbluh2017CRISPRi.sim$Category)
+
+ggplot(x, aes(x = log2fc, colour = category)) + geom_histogram(aes(y = ..density.., fill = category), alpha = 0.5, bins = 50, position = "identity")+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControlVsNegativeGenesVsPositiveGenesHist.pdf')
+ggplot(x, aes(x = log2fc, colour = category)) + geom_histogram(aes(y = ..density.., fill = category), alpha = 0.5, bins = 50, position = "identity")+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+dev.off()
+
+#pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControlVsNegativeGenesVsPositiveGenesJoyplot.pdf')
+ggplot(x, aes(x = log2fc, y = category)) + geom_joy(scale = 0.85) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+#dev.off()
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimNegativeControlVsNegativeGenesVsPositiveGenesJoyplot.pdf')
+ggplot(x, aes(x = log2fc, y = category)) + geom_joy(scale = 0.85) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+dev.off()
+```
+```{r}
+devtools::install_github("timydaley/CRISPhieRmix")
+library(CRISPhieRmix)
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix = CRISPhieRmix(x = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[-which(Rosenbluh2017CRISPRi.sim$Category == "control")],
+                                                                  negCtrl = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim$Category == "control")],
+                                                                  geneIds = Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene[-which(Rosenbluh2017CRISPRi.sim$Category == "control")],
+                                                                  mu = -5, sigma = 2, VERBOSE = TRUE, PLOT = TRUE, nMesh = 100, minDegree = 4)
+```
+```{r}
+x = Rosenbluh2017CRISPRi.sim.DESeq.log2fc
+b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
+hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations", ylim = c(0, 1.1))
+lines(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq*dnorm(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$mu, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$sigma), lwd = 2, col = "dodgerblue")
+lines(b, (1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq)*exp(apply(t(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[1] - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_log_norm_factor), col = "red", lwd  = 2)
+lines(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq*dnorm(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$mu, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$sigma) + (1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq)*exp(apply(t(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[1] - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_log_norm_factor), lwd = 2, col = "darkviolet")
+legend("topleft", legend = c("negative control fit", "positive fit", "mixture fit"), lwd = 2, col = c("red", "dodgerblue", "darkviolet"))
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimGeneTargetingEmpiricalMixFit.pdf')
+hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations", ylim = c(0, 1.1))
+lines(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq*dnorm(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$mu, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$sigma), lwd = 2, col = "dodgerblue")
+lines(b, (1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq)*exp(apply(t(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[1] - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_log_norm_factor), col = "red", lwd  = 2)
+lines(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq*dnorm(b, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$mu, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$sigma) + (1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$pq)*exp(apply(t(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_coefficients[1] - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$empiricalMixFit$null_log_norm_factor), lwd = 2, col = "darkviolet")
+legend("topleft", legend = c("negative control fit", "positive fit", "mixture fit"), lwd = 2, col = c("red", "dodgerblue", "darkviolet"))
+dev.off()
+
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix = normalMix(x = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[-which(Rosenbluh2017CRISPRi.sim$Category == "control")], 
+                                                            geneIds = Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene[-which(Rosenbluh2017CRISPRi.sim$Category == "control")],
+                                                            mu0 = 0, sigma0 = 0.5, mu = -2, sigma = 1, nMesh = 200)
+```
+```{r}
+# empirical mix
+sum(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score > 0.9)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score > 0.9)])
+sum(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score > 0.8)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score > 0.8)])
+
+#normal mix
+sum(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score > 0.8)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score > 0.8)])
+
+# mageck wald test
+sum(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr < 0.1)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr < 0.1)])
+sum(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr < 0.2)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr < 0.2)])
+
+# mageck permutation test
+sum(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.fdr < 0.1)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.fdr < 0.1)])
+sum(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.fdr < 0.2)
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.fdr < 0.2)])
+
+
+fdr.curve <- function(thresh, fdrs, baseline){
+  w = which(fdrs < thresh)
+  if(length(w) > 0){
+    return(sum(1 - baseline[w])/length(w))
+  }
+  else{
+    return(NA)
+  }
+}
+s = seq(from = 0, to = 1, length = 101)
+#f = sapply(s, function(t) fdr.curve(t, Rosenbluh2017CRISPRiSimMageckRra.gene_summary$neg.fdr, Rosenbluh2017CRISPRi.sim.essential$essential))
+#plot(s[na.omit(f)], f[na.omit(f)], type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "MAGeCK RRA")
+
+f = sapply(s, function(t) fdr.curve(t, Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr, Rosenbluh2017CRISPRi.sim.essential$essential))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "MAGeCK MLE Wald Fdr", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deeppink")
+abline(0, 1, lty = 2)
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMleWaldEmpiricalVsEstimatedFDR.pdf')
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "MAGeCK MLE", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deeppink")
+abline(0, 1, lty = 2)
+dev.off()
+
+f = sapply(s, function(t) fdr.curve(t, Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.fdr, Rosenbluh2017CRISPRi.sim.essential$essential))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "MAGeCK MLE permutation Fdr", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deeppink")
+abline(0, 1, lty = 2)
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMleEmpiricalVsEstimatedFDR.pdf')
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "MAGeCK MLE", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deeppink")
+abline(0, 1, lty = 2)
+dev.off()
+
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.fdr = sapply(1:length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score), function(i) mean(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score[which(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score <= 1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score[i])]) )
+length(which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.fdr < 0.1))
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.fdr < 0.1)])
+
+f = sapply(s, function(t) fdr.curve(t, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.fdr, Rosenbluh2017CRISPRi.sim.essential$essential))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "CRISPhieRmix", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
+abline(0, 1, lty = 2)
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimCRISPhieRmixEmpiricalVsEstimatedFDR.pdf')
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "CRISPhieRmix", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
+abline(0, 1, lty = 2)
+dev.off()
+
+
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.fdr = sapply(1:length(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score), function(i) mean(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score[which(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score <= 1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score[i])]) )
+length(which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.fdr < 0.1))
+sum(Rosenbluh2017CRISPRi.sim.essential$essential[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.fdr < 0.1)])
+
+f = sapply(s, function(t) fdr.curve(t, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.fdr, Rosenbluh2017CRISPRi.sim.essential$essential))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "Normal FDR", main = "normal mix", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
+abline(0, 1, lty = 2)
+
+hist(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, breaks = 40, col = "grey", main = "CRISPhieRmix local fdrs")
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimCRISPhieRmixFdrHist.pdf')
+hist(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, breaks = 40, col = "grey")
+dev.off()
+
+hist(1 - Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score, breaks = 40, col = "grey", main = "normal hier mix local fdrs")
+
+hist(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.p.value, breaks = 40, col = "grey", main = "MAGeCK Wald p values")
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMleWaldFdrHist.pdf')
+hist(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.p.value, breaks = 40, col = "grey")
+dev.off()
+
+hist(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.p.value, breaks = 40, col = "grey", main = "MAGeCK MLE permutation pvals")
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckMleFdrHist.pdf')
+hist(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.p.value, breaks = 40, col = "grey")
+dev.off()
+
+hist(Rosenbluh2017CRISPRiSimMageckRra.gene_summary$neg.p.value, breaks = 40, col = "grey", main = "MAGeCK RRA pvals")
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimMageckRraFdrHist.pdf')
+hist(Rosenbluh2017CRISPRiSimMageckRra.gene_summary$neg.p.value, breaks = 40, col = "grey")
+dev.off()
+```
+
+```{r}
+top18genes = sapply(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$gene[head(order(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, decreasing = TRUE), 18)], toString)
+top18genes
+other.essential = Rosenbluh2017CRISPRi.sim.essential$gene[which(!(Rosenbluh2017CRISPRi.sim.essential$gene %in% top18genes) & Rosenbluh2017CRISPRi.sim.essential$essential)]
+other.essential
+b = seq(from = min(Rosenbluh2017CRISPRi.sim.DESeq.log2fc) - 0.01, to = max(Rosenbluh2017CRISPRi.sim.DESeq.log2fc) + 0.01, length = 61)
+hist(Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene %in% other.essential)], breaks = b, probability = TRUE, col = rgb(0, 0, 1, 0.6), main = "Top 18 genes vs other essential genes", xlab = "log2fc")
+hist(Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene %in% top18genes)], breaks = b, probability = TRUE, col = rgb(0, 1, 0, 0.6), add = TRUE)
+
+legend("topleft", legend = c("top 18 genes", "other essential genes"), pch = 15, col = c(rgb(0, 1, 0, 0.6), rgb(0, 0, 1, 0.6)))
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimTop18genesVsOtherEssential.pdf')
+hist(Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene %in% other.essential)], breaks = b, probability = TRUE, col = rgb(0, 0, 1, 0.6), main = "Top 18 genes vs other essential genes", xlab = "log2fc")
+hist(Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.gene %in% top18genes)], breaks = b, probability = TRUE, col = rgb(0, 1, 0, 0.6), add = TRUE)
+legend("topleft", legend = c("top 18 genes", "other essential genes"), pch = 15, col = c(rgb(0, 1, 0, 0.6), rgb(0, 0, 1, 0.6)))
+dev.off()
+```
+
+```{r}
+library(pROC)
+# empirical mix
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc = roc(Rosenbluh2017CRISPRi.sim.essential$essential, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, auc = TRUE)
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc
+# normal mix
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc = roc(Rosenbluh2017CRISPRi.sim.essential$essential, Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix$score, auc = TRUE)
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc
+# Mageck mle wald
+Rosenbluh2017CRISPRiSimMageckMleWald.roc = roc(Rosenbluh2017CRISPRi.sim.essential$essential, Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.p.value, auc = TRUE)
+Rosenbluh2017CRISPRiSimMageckMleWald.roc
+# mageck mle permuation
+Rosenbluh2017CRISPRiSimMageckMle.roc = roc(Rosenbluh2017CRISPRi.sim.essential$essential, Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.p.value, auc = TRUE)
+
+plot(Rosenbluh2017CRISPRiSimMageckMle.roc, col = "deeppink", lwd = 2, lty = 2, xlim = c(0, 1), ylim = c(0, 1), main = "ROC curves")
+lines(Rosenbluh2017CRISPRiSimMageckMleWald.roc, col = "red", lwd = 3, lty = 2)
+lines(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc, col = "dodgerblue", lwd = 2, lty = 4)
+lines(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc, col = "darkblue", lwd = 2, lty = 5)
+legend("bottomright", legend = c(paste0("MAGeCK MLE (AUC = ", round(Rosenbluh2017CRISPRiSimMageckMle.roc$auc, digits = 3), ")"), paste0("MAGeCK Wald MLE (AUC = ", round(Rosenbluh2017CRISPRiSimMageckMleWald.roc$auc, digits = 3), ")"), paste0("CRISPhieRmix (AUC = ", round(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc$auc, digits = 3), ")"), paste0("normal hier mix (AUC = ", round(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc$auc, digits = 3), ")")), lty = c(2, 3, 4, 5), lwd = 2, col = c("deeppink", "red", "dodgerblue", "darkblue"))
+
+pdf('~/sgRNA/sgRNA2Groups/tex_writing/figures/Rosenbluh2017/Rosenbluh2017CRISPRiSimRocCurves.pdf')
+plot(Rosenbluh2017CRISPRiSimMageckMle.roc, col = "deeppink", lwd = 2, lty = 2, xlim = c(0, 1), ylim = c(0, 1), main = "ROC curves")
+lines(Rosenbluh2017CRISPRiSimMageckMleWald.roc, col = "red", lwd = 3, lty = 2)
+lines(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc, col = "dodgerblue", lwd = 2, lty = 4)
+lines(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc, col = "darkblue", lwd = 2, lty = 5)
+legend("bottomright", legend = c(paste0("MAGeCK MLE (AUC = ", round(Rosenbluh2017CRISPRiSimMageckMle.roc$auc, digits = 3), ")"), paste0("MAGeCK Wald MLE (AUC = ", round(Rosenbluh2017CRISPRiSimMageckMleWald.roc$auc, digits = 3), ")"), paste0("CRISPhieRmix (AUC = ", round(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix.roc$auc, digits = 3), ")"), paste0("normal hier mix (AUC = ", round(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix.roc$auc, digits = 3), ")")), lty = c(2, 3, 4, 5), lwd = 2, col = c("deeppink", "red", "dodgerblue", "darkblue"))
+dev.off()
+```
+
+
+```{r}
+head(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$gene[order(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, decreasing = TRUE)], 20)
+head(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$Gene[order(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr, decreasing = FALSE)], 20)
+library(pspearman)
+spearman.test(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$gene[order(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, decreasing = TRUE)], Rosenbluh2017CRISPRiSimMageckMle.gene_summary$Gene[order(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr, decreasing = FALSE)])
+sapply(1:30, function(i) length(intersect(head(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$gene[order(Rosenbluh2017CRISPRi.sim.DESeq.log2fc.empiricalMix$score, decreasing = TRUE)], i), head(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$Gene[order(Rosenbluh2017CRISPRiSimMageckMle.gene_summary$dCas9.wald.fdr, decreasing = FALSE)], i)))/i)
+```
+
+```{r}
+Rosenbluh2017CRISPRiSim = list(x = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim$Category != "control")], geneIds = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim$Category != "control")], negCtrl = Rosenbluh2017CRISPRi.sim.DESeq.log2fc[which(Rosenbluh2017CRISPRi.sim$Category == "control")])
+save(Rosenbluh2017CRISPRiSim, file = "~/sgRNA/CRISPhieRmix/data/RosenbluhSim.Rda")
+```
+
+
