@@ -6,8 +6,9 @@ Author: as.person(“Timothy Daley <tdaley@stanford.edu> [aut, cre]”)
 Maintainer: Timothy Daley <tdaley@stanford.edu> 
 Description:  A tool for identifying interesting genes in large pooled CRISPRi and CRISPRa screen using hierarchical mixture models
 Imports: 
-  sn
   statmod
+Suggests:
+  sn
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
