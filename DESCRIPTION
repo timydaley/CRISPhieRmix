@@ -5,6 +5,7 @@ Version: 0.1.0
 Author: as.person(“Timothy Daley <tdaley@stanford.edu> [aut, cre]”)
 Maintainer: Timothy Daley <tdaley@stanford.edu> 
 Description:  A tool for identifying interesting genes in large pooled CRISPRi and CRISPRa screen using hierarchical mixture models
+Depends: R(>= 3.4.2)
 Imports: 
   statmod
 Suggests:
