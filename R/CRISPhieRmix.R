@@ -529,47 +529,66 @@ fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
 #' negCtrl = Rosenbluh2017CRISPRiSim$negCtrl, mu = -2, sigma = 0.5, nMesh = 200)
 #'
 #' @export
-CRISPhieRmix <- function(x, geneIds, negCtrl, #empiricalNegCtrlFits = NULL,
+CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                          max_iter = 100, tol = 1e-10, pq = 0.1, mu = 4, sigma = 1,
                          nMesh = 100, maxDegree = 20, minDegree = 4,
+                         BIMODAL = FALSE,
                          VERBOSE = FALSE, PLOT = FALSE){
   #stopifnot(!is.null(neg.ctrl) | !is.null(empiricalNegCtrlFits))
   if(!is.null(negCtrl)){
     negCtrlFit = fitNegCtrl(negCtrl, maxDegree = maxDegree, minDegree = minDegree,
                             VERBOSE = VERBOSE, PLOT = PLOT)
-  }
-  if(VERBOSE){
-    cat("fit negative control distributions \n")
-  }
-  empiricalMixFit = emprical2GroupEMmix(x, gene_info = geneIds,
-                                        null_coefficients = negCtrlFit[["coefficients"]],
-                                        null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
-                                        max_iter = max_iter, tol = tol, pq = pq,
-                                        mu = mu, sigma = sigma, VERBOSE = VERBOSE)
+    if(VERBOSE){
+      cat("fit negative control distributions \n")
+    }
+    empiricalMixFit = emprical2GroupEMmix(x, gene_info = geneIds,
+                                          null_coefficients = negCtrlFit[["coefficients"]],
+                                          null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
+                                          max_iter = max_iter, tol = tol, pq = pq,
+                                          mu = mu, sigma = sigma, VERBOSE = VERBOSE)
 
-  if(VERBOSE){
-    cat("fit mixture \n")
-    cat("mu = ", empiricalMixFit$mu,
-        ", sigma = ", empiricalMixFit$sigma,
-        ", pq = ", empiricalMixFit$pq, "\n")
-  }
-  if(PLOT){
-    b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
-    hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
-    lines(b, empiricalMixFit$pq*dnorm(b, empiricalMixFit$mu, empiricalMixFit$sigma), lwd = 2, col = "darkgreen")
-    lines(b, (1 - empiricalMixFit$pq)*exp(apply(t(empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + empiricalMixFit$null_coefficients[1] - empiricalMixFit$null_log_norm_factor), col = "red", lwd  = 2)
-  }
+    if(VERBOSE){
+      cat("fit mixture \n")
+      cat("mu = ", empiricalMixFit$mu,
+          ", sigma = ", empiricalMixFit$sigma,
+          ", pq = ", empiricalMixFit$pq, "\n")
+    }
+    if(PLOT){
+      b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
+      hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
+      lines(b, empiricalMixFit$pq*dnorm(b, empiricalMixFit$mu, empiricalMixFit$sigma), lwd = 2, col = "darkgreen")
+      lines(b, (1 - empiricalMixFit$pq)*exp(apply(t(empiricalMixFit$null_coefficients[-1]*t(poly(b, degree = length(empiricalMixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + empiricalMixFit$null_coefficients[1] - empiricalMixFit$null_log_norm_factor), col = "red", lwd  = 2)
+    }
 
-  genePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
-                                                        negCtrlFit[["coefficients"]],
-                                                        negCtrlFit[["log_norm_factor"]],
-                                                        mu = empiricalMixFit[["mu"]],
-                                                        sigma = empiricalMixFit[["sigma"]],
-                                                        pq = empiricalMixFit[["pq"]],
+    genePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
+                                                          negCtrlFit[["coefficients"]],
+                                                          negCtrlFit[["log_norm_factor"]],
+                                                          mu = empiricalMixFit[["mu"]],
+                                                          sigma = empiricalMixFit[["sigma"]],
+                                                          pq = empiricalMixFit[["pq"]],
+                                                          nMesh = nMesh)
+    mixFit = empiricalMixFit
+  }
+  else{
+    require(mixtools)
+    normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
+                                         sigma = c(1, sigma))
+    if(PLOT){
+      plot(normalMixFit, density = TRUE)[2]
+    }
+    genePosteriors = integratedGeneExpectationNormalMix(x, geneIds = geneIds,
+                                                        mu0 = normalMixFit[["mu"]][[1]],
+                                                        mu = normalMixFit[["mu"]][[2]],
+                                                        sigma0 = normalMixFit[["sigma"]][[1]],
+                                                        sigma = normalMixFit[["sigma"]][[2]],
+                                                        pq = normalMixFit[["lambda"]][[2]],
                                                         nMesh = nMesh)
+    mixFit = normalMixFit
+    
+  }
   return(list(genes = unique(geneIds),
               score = genePosteriors,
-              empiricalMixFits = empiricalMixFit))
+              mixFit = mixFit))
 }
 
 
