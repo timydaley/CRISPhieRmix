@@ -17,5 +17,4 @@
 #' @examples
 #' data(Rosenbluh2017CRISPRiSim)
 #' 
-#' @export
 "Rosenbluh2017CRISPRiSim"
