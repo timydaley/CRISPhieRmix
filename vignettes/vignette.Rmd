@@ -1,0 +1,12 @@
+---
+title: "CRISPhieRmix vignette"
+author: "Timothy Daley"
+date: "2/2/2018"
+output: html_document
+---
+
+CRISPhieRmix is an R package to fit a hierarchical mixture model to the log fold changes obtained from a pooled CRISPR inhibition (CRISPRi) or CRISPR activation (CRISPRa) experiment.  CRISPhieRmix computes gene-level probabilities that each gene is interesting.  CRISPhieRmix has two methods, depending on whether or not negative control guides are available.  Without negative control guides, CRISPhieRmix will fit a hierarchical normal mixture model.  With negative control guides, CRISPhieRmix will compute a semi-parametric fit to the negative control guides and use this to fit a hierarchical mixture model.
+
+We typically suggest that the log fold changes be calculated by DESeq2, edgeR, or some other tool to compute moderated fold changes to take sequencing depth effects into account.  
+
+In this vignette, we'll walk through the analysis of the data using a semi-simulated data set from [Rosenbluh et al. 2017](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/).  
