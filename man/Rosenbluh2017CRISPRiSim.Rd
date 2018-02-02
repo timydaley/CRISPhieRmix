@@ -4,8 +4,10 @@
 \name{Rosenbluh2017CRISPRiSim}
 \alias{Rosenbluh2017CRISPRiSim}
 \title{Simulated data from Rosenbluh et al (2017) Nature Communications}
-\format{a list with x = log2 fold changes of gene targetting guides, geneIds = gene ids of gudies,
-  negCtrl = log2 fold changes of negative control guides}
+\format{a list with log2fc = log2 fold changes of gene targetting guides, 
+  geneIds = gene ids of gudies,
+  negCtrl = log2 fold changes of negative control guides, 
+  and counts = the count matrix}
 \source{
 \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/}
 }

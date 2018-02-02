@@ -2,6 +2,5 @@
 
 export(CRISPhieRmix)
 export(Rosenbluh2017CRISPRiSim)
-export(normalMix)
 import(sn)
 import(statmod)
