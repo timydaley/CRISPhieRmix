@@ -567,8 +567,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           pq = empiricalMixFit[["pq"]],
                                                           nMesh = nMesh)
     mixFit = empiricalMixFit
-  }
-  else{
+  } else{
     require(mixtools)
     normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
                                          sigma = c(1, sigma))
