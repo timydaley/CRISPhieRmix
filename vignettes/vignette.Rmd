@@ -9,4 +9,84 @@ CRISPhieRmix is an R package to fit a hierarchical mixture model to the log fold
 
 We typically suggest that the log fold changes be calculated by DESeq2, edgeR, or some other tool to compute moderated fold changes to take sequencing depth effects into account.  
 
-In this vignette, we'll walk through the analysis of the data using a semi-simulated data set from [Rosenbluh et al. 2017](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/).  
+In this vignette, we'll walk through the analysis of the data using a semi-simulated data set from [Rosenbluh et al. 2017](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/).  This data is available with the CRISPhieRmix package.
+
+```{r message=FALSE, warning=FALSE}
+devtools::install_github("timydaley/CRISPhieRmix")
+library(CRISPhieRmix)
+data(Rosenbluh2017CRISPRiSim)
+summary(Rosenbluh2017CRISPRiSim)
+Rosenbluh2017CRISPRiSim.essential = data.frame(gene = unique(Rosenbluh2017CRISPRiSim$geneIds), 
+                                                essential = 1 - grepl("sim", unique(Rosenbluh2017CRISPRiSim$geneIds)))
+Rosenbluh2017CRISPRiSim.essential$gene = factor(Rosenbluh2017CRISPRiSim.essential$gene, levels = unique(Rosenbluh2017CRISPRiSim.essential$gene))
+```
+
+The variable log2fc contains the DESeq2 computed log2 fold changes for the gene targeting guides, including both real genes and simulated negative genes; the variable geneIds contain the corresponding gene labels, with negative genes starting with "sim"; the variable negCtrl contains the DESeq2 log2 fold changes for the negative control guides; and counts contains the  count matrix calculated from Supplementary Table 7 at https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/.  For completeness, I will show how to obtain the log2 fold changes from the raw counts.
+
+```{r message=FALSE, warning=FALSE}
+library(DESeq2)
+counts = Rosenbluh2017CRISPRiSim$counts[ ,4:6]
+coldata = data.frame(condition = c(0, 1, 1))
+rownames(coldata) = colnames(counts)
+Rosenbluh2017CRISPRiSimDESeq = DESeq2::DESeqDataSetFromMatrix(countData = counts, 
+                                                                colData = coldata, 
+                                                                design = ~ condition)
+Rosenbluh2017CRISPRiSimDESeq = DESeq2::DESeq(Rosenbluh2017CRISPRiSimDESeq)
+Rosenbluh2017CRISPRiSimDESeq = DESeq2::results(Rosenbluh2017CRISPRiSimDESeq)
+log2fc = Rosenbluh2017CRISPRiSimDESeq$log2FoldChange
+b = seq(from = min(log2fc) - 0.1, to = max(log2fc) + 0.1, length = 81)
+negCtrl = log2fc[which(Rosenbluh2017CRISPRiSim$counts$Category == "control")]
+log2fc = log2fc[-which(Rosenbluh2017CRISPRiSim$counts$Category == "control")]
+geneIds = Rosenbluh2017CRISPRiSim$counts$Gene[-which(Rosenbluh2017CRISPRiSim$counts$Category == "control")]
+geneIds = factor(geneIds, levels = unique(geneIds))
+hist(negCtrl, breaks = b, probability = TRUE, col = rgb(1, 0, 0, 0.6))
+hist(log2fc, breaks = b, probability = TRUE, add = TRUE, col = rgb(0, 0, 1, 0.6))
+legend("topleft", legend = c("gene targetting", "negative control"), col = c(rgb(0, 0, 1, 0.6), rgb(1, 0, 0, 0.6)), pch = 15)
+cor(log2fc, Rosenbluh2017CRISPRiSim$log2fc)
+```
+
+Now let's fit CRISPhieRmix to the log2 fold changes, including the VERBOSE and PLOT flags to look at the fit.
+
+```{r}
+log2fcCRISPhieRmixFit = CRISPhieRmix(log2fc, geneIds = geneIds, negCtrl = negCtrl, mu = -2, nMesh = 100, PLOT = TRUE, VERBOSE = TRUE)
+log2fcCRISPhieRmixScores = data.frame(gene = log2fcCRISPhieRmixFit$gene, locfdr = 1 - log2fcCRISPhieRmixFit$score)
+log2fcCRISPhieRmixScores = log2fcCRISPhieRmixScores[order(log2fcCRISPhieRmixScores$locfdr, decreasing = FALSE), ]
+head(log2fcCRISPhieRmixScores, 20)
+hist(log2fcCRISPhieRmixScores$locfdr, breaks = 50, col = "grey", xlab = "CRISPhieRmix locfdr")
+
+estimatedFdr = sapply(1:dim(log2fcCRISPhieRmixScores)[1], function(i) mean(log2fcCRISPhieRmixScores$locfdr[1:i]))
+
+fdr.curve <- function(thresh, fdrs, baseline){
+  w = which(fdrs < thresh)
+  if(length(w) > 0){
+    return(sum(1 - baseline[w])/length(w))
+  }
+  else{
+    return(NA)
+  }
+}
+```
+```{r}
+s = seq(from = 0, to = 1, length = 1001)
+f = sapply(s, function(t) fdr.curve(t, estimatedFdr, Rosenbluh2017CRISPRiSim.essential$essential[match(log2fcCRISPhieRmixScores$gene, Rosenbluh2017CRISPRiSim.essential$gene)]))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "CRISPhieRmix", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
+abline(0, 1, lty = 2)
+```
+
+What if negative control guides are not available?  What we observe is that the gene rankings are highly similar, but the estimated Fdr is much higher for the normal mixture model.
+
+```{r}
+log2fcNormalMixFit = CRISPhieRmix(log2fc, geneIds = geneIds, mu = -2, nMesh = 100, PLOT = TRUE, VERBOSE = TRUE)
+log2fcNormalMixScores = data.frame(gene = log2fcNormalMixFit$gene, locfdr = 1 - log2fcNormalMixFit$score)
+log2fcNormalMixScores = log2fcNormalMixScores[order(log2fcNormalMixScores$locfdr, decreasing = FALSE), ]
+head(log2fcNormalMixScores, 20)
+hist(log2fcNormalMixScores$locfdr, breaks = 50, col = "grey", xlab = "CRISPhieRmix locfdr")
+
+estimatedFdr = sapply(1:dim(log2fcNormalMixScores)[1], function(i) mean(log2fcNormalMixScores$locfdr[1:i]))
+
+f = sapply(s, function(t) fdr.curve(t, estimatedFdr, Rosenbluh2017CRISPRiSim.essential$essential[match(log2fcNormalMixScores$gene, Rosenbluh2017CRISPRiSim.essential$gene)]))
+plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "Normal hierarchical mixture", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
+abline(0, 1, lty = 2)
+
+cor(1- log2fcNormalMixFit$score, 1 - log2fcCRISPhieRmixFit$score, method = "spearman")
+```
