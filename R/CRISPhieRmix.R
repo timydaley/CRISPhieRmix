@@ -309,7 +309,6 @@ averageReplicatesSkewNormalMix <- function(x, geneIds, neg.ctrl = NULL,
 #' normalMix(x = Rosenbluh2017CRISPRiSim$x, geneIds = Rosenbluh2017CRISPRiSim$geneIds,
 #' mu0 = 0, sigma0 = 0.5, mu = -2, sigma = 1, nMesh = 200)
 #'
-#' @export
 normalMix <- function(x, geneIds, pq = 0.1, mu0 = 0, sigma0 = 1,
                       mu = 5, sigma = 1, nMesh = 100,
                       VERBOSE = FALSE, PLOT = FALSE){
@@ -592,24 +591,5 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
 }
 
 
-#' Simulated data from Rosenbluh et al (2017) Nature Communications
-#'
-#' A dataset containing DESeq2 computed log2 fold changes for 34 essential genes
-#' and 102 simulated negative genes, as well as negative control guides.
-#' Simulated negative genes have geneIds starting with 'sim'
-#'
-#' @name Rosenbluh2017CRISPRiSim
-#' @docType data
-#' @keywords data
-#' @format a list with x = log2 fold changes of gene targetting guides, geneIds = gene ids of gudies,
-#'   negCtrl = log2 fold changes of negative control guides
-#'
-#' @source \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5457492/}
-#'
-#' @examples
-#' data(Rosenbluh2017CRISPRiSim)
-#' 
-#' @export
-"Rosenbluh2017CRISPRiSim"
 
 
