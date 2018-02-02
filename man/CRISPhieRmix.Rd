@@ -5,9 +5,9 @@
 \alias{CRISPhieRmix}
 \title{CRISPhieRmix}
 \usage{
-CRISPhieRmix(x, geneIds, negCtrl, max_iter = 100, tol = 1e-10, pq = 0.1,
-  mu = 4, sigma = 1, nMesh = 100, maxDegree = 20, minDegree = 4,
-  VERBOSE = FALSE, PLOT = FALSE)
+CRISPhieRmix(x, geneIds, negCtrl = NULL, max_iter = 100, tol = 1e-10,
+  pq = 0.1, mu = 4, sigma = 1, nMesh = 100, maxDegree = 20,
+  minDegree = 4, BIMODAL = FALSE, VERBOSE = FALSE, PLOT = FALSE)
 }
 \arguments{
 \item{x}{log2 fold changes of guides targeting genes}
@@ -37,20 +37,20 @@ CRISPhieRmix(x, geneIds, negCtrl, max_iter = 100, tol = 1e-10, pq = 0.1,
 \item{PLOT}{boolean variable to produce plots, default = FALSE}
 }
 \value{
-a list containing genes, the corresponding posterior probabilities of being non-null, 
+a list containing genes, the corresponding posterior probabilities of being non-null,
 and the mixture fit
 
-a list containing genes, the corresponding posterior probabilities, 
+a list containing genes, the corresponding posterior probabilities,
 and the mixture fit.
 }
 \description{
-A tool for indentifying interesting genes in large pooled CRISPRi and CRISPRa screen
+A tool for identifying interesting genes in large pooled CRISPRi and CRISPRa screen
 using hierarchical mixture models
 
 a hierarchical mixture model for analysing large-scale CRISPRi/a pooled screen
 }
 \examples{
-Rosenbluh2017CRISPRi.sim.DESeq.log2fc.CRISPhieRmix = 
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.CRISPhieRmix =
 CRISPhieRmix(x = Rosenbluh2017CRISPRiSim$x, geneIds = Rosenbluh2017CRISPRiSim$geneIds,
 negCtrl = Rosenbluh2017CRISPRiSim$negCtrl, mu = -2, sigma = 0.5, nMesh = 200)
 

@@ -598,6 +598,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
 #' and 102 simulated negative genes, as well as negative control guides.
 #' Simulated negative genes have geneIds starting with 'sim'
 #'
+#' @name Rosenbluh2017CRISPRiSim
+#' @docType data
+#' @keywords data
 #' @format a list with x = log2 fold changes of gene targetting guides, geneIds = gene ids of gudies,
 #'   negCtrl = log2 fold changes of negative control guides
 #'
@@ -605,5 +608,8 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
 #'
 #' @examples
 #' data(Rosenbluh2017CRISPRiSim)
+#' 
+#' @export
+"Rosenbluh2017CRISPRiSim"
 
 

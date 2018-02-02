@@ -30,14 +30,14 @@ note that label switching can occur and this should be set with prior knowledge}
 \item{PLOT}{default = FALSE}
 }
 \value{
-a list containing genes, the corresponding posterior probabilities, 
+a list containing genes, the corresponding posterior probabilities,
 and the normal mixture fit.
 }
 \description{
 fit a normal hierarchical 2 groups model to log2fc changes from a CRISPRi/a screen
 }
 \examples{
-Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix = 
+Rosenbluh2017CRISPRi.sim.DESeq.log2fc.NormalMix =
 normalMix(x = Rosenbluh2017CRISPRiSim$x, geneIds = Rosenbluh2017CRISPRiSim$geneIds,
 mu0 = 0, sigma0 = 0.5, mu = -2, sigma = 1, nMesh = 200)
 
