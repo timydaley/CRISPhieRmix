@@ -49,7 +49,8 @@ Now let's fit CRISPhieRmix to the log2 fold changes, including the VERBOSE and P
 
 ```{r}
 log2fcCRISPhieRmixFit = CRISPhieRmix(log2fc, geneIds = geneIds, negCtrl = negCtrl, mu = -2, nMesh = 100, PLOT = TRUE, VERBOSE = TRUE)
-log2fcCRISPhieRmixScores = data.frame(gene = log2fcCRISPhieRmixFit$gene, locfdr = 1 - log2fcCRISPhieRmixFit$score)
+log2fcCRISPhieRmixScores = data.frame(gene = log2fcCRISPhieRmixFit$gene, locfdr = 1 - log2fcCRISPhieRmixFit$score, score = log2fcCRISPhieRmixFit$score)
+log2fcCRISPhieRmixScores$locfdr[which(log2fcCRISPhieRmixScores$locfdr < 0)] = 0
 log2fcCRISPhieRmixScores = log2fcCRISPhieRmixScores[order(log2fcCRISPhieRmixScores$locfdr, decreasing = FALSE), ]
 head(log2fcCRISPhieRmixScores, 20)
 hist(log2fcCRISPhieRmixScores$locfdr, breaks = 50, col = "grey", xlab = "CRISPhieRmix locfdr")
