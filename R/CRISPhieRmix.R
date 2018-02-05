@@ -460,7 +460,7 @@ fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
     }
   }
   else{
-    breaks = seq(from = min(neg.ctrl) - 0.2, to = max(neg.ctrl) + 0.2, length = 101)
+    breaks = seq(from = min(neg.ctrl) - 0.5, to = max(neg.ctrl) + 0.5, length = 101)
     h = hist(neg.ctrl, breaks = breaks, plot = FALSE)
     if(VERBOSE){
 
