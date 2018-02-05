@@ -512,6 +512,7 @@ fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
 #' @param nMesh the number of points to use in numerical integration of posterior probabilities, default = 100
 #' @param maxDegree the maximum degree of the Lindsey fit, default = 20
 #' @param minDegree the minimum degree of the Lindsey fit, default = 4
+#' @param breaks either a number indicating the number of breaks or the sequence of breaks, default = 101
 #' @param VERBOSE boolean variable for VERBOSE mode, default = FALSE
 #' @param PLOT boolean variable to produce plots, default = FALSE
 #' @return a list containing genes, the corresponding posterior probabilities of being non-null,
@@ -531,12 +532,13 @@ fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
 CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                          max_iter = 100, tol = 1e-10, pq = 0.1, mu = 4, sigma = 1,
                          nMesh = 100, maxDegree = 20, minDegree = 4,
+                         breaks = 101,
                          BIMODAL = FALSE,
                          VERBOSE = FALSE, PLOT = FALSE){
   #stopifnot(!is.null(neg.ctrl) | !is.null(empiricalNegCtrlFits))
   if(!is.null(negCtrl)){
     negCtrlFit = fitNegCtrl(negCtrl, maxDegree = maxDegree, minDegree = minDegree,
-                            VERBOSE = VERBOSE, PLOT = PLOT)
+                            breaks = 101, VERBOSE = VERBOSE, PLOT = PLOT)
     if(VERBOSE){
       cat("fit negative control distributions \n")
     }
