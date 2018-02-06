@@ -763,6 +763,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       cat("fit negative control distributions \n")
     }
     if(BIMODAL){
+      if(VERBOSE){
+        cat("3 groups \n")
+      }
       CRISPhieRmixFit = CRISPhieRmix3Groups(x = x, geneIds = geneIds, negCtrlFit = negCtrlFit,
                                             max_iter = max_iter, tol = tol, pq = pq, 
                                             mu = mu, sigma = sigma, nMesh = nMesh,
@@ -771,6 +774,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     }
     else{
       stopifnot(length(mu) == 1)
+      if(VERBOSE){
+        cat("2 groups \n")
+      }
       CRISPhieRmixFit = CRISPhieRmix2Groups(x, geneIds = geneIds, negCtrlFit = negCtrlFit, 
                                             max_iter = max_iter, tol = tol, pq = pq, 
                                             mu = mu, sigma = sigma, nMesh = nMesh, breaks = breaks,
