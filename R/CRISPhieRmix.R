@@ -771,8 +771,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                             mu = mu, sigma = sigma, nMesh = nMesh,
                                             breaks = 101, VERBOSE = FALSE, PLOT = FALSE)
       
-    }
-    else{
+    } else{
       stopifnot(length(mu) == 1)
       if(VERBOSE){
         cat("2 groups \n")
@@ -797,11 +796,12 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                         pq = normalMixFit[["lambda"]][[2]],
                                                         nMesh = nMesh)
     mixFit = normalMixFit
-    
+    CRISPhieRmixFit = list(genes = unique(geneIds), 
+                           locfdr = 1 - genePosteriors,
+                           geneScores = genePosteriors,
+                           mixFit = normalMixFit)
   }
-  return(list(genes = unique(geneIds),
-              score = genePosteriors,
-              mixFit = mixFit))
+  return(CRISPhieRmixFit)
 }
 
 
