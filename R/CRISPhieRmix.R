@@ -667,11 +667,11 @@ CRISPhieRmix2Groups <- function(x, geneIds, negCtrlFit,
               mixFit = mixFit))
 }
 
-CRISPhieRmix3Groups(x, geneIds, negCtrlFit,
-                    max_iter = 100, tol = 1e-10, pq = c(0.05, 0.05), 
-                    mu = c(-4, 4), sigma = c(1, 1),
-                    nMesh = 100, breaks = 101,
-                    VERBOSE = FALSE, PLOT = FALSE){
+CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
+                                max_iter = 100, tol = 1e-10, pq = c(0.05, 0.05), 
+                                mu = c(-4, 4), sigma = c(1, 1),
+                                nMesh = 100, breaks = 101,
+                                VERBOSE = FALSE, PLOT = FALSE){
   params = setBimodalParams(mu, sigma, pq)  
   mixFit = emprical3GroupEMmix(x, null_coefficients = negCtrlFit[["coefficients"]], 
                                null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
