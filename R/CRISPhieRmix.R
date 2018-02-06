@@ -708,7 +708,7 @@ CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
                                                            mu = mixFit[["muNeg"]],
                                                            sigma = mixFit[["sigmaNeg"]],
                                                            lowerLim = mixFit[["qpNeg"]],
-                                                           upperLim = mixFit[["qpPos"]]
+                                                           upperLim = mixFit[["qpPos"]],
                                                            nMesh = nMesh)
   
   return(list(locfdr = 1 - posGenePosteriors - negGenePosteriors,
