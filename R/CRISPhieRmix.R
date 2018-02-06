@@ -755,7 +755,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                          nMesh = 100, maxDegree = 20, minDegree = 4,
                          breaks = 101,
                          BIMODAL = FALSE,
-                         VERBOSE = FALSE, PLOT = FALSE){}
+                         VERBOSE = FALSE, PLOT = FALSE){
   #stopifnot(!is.null(neg.ctrl) | !is.null(empiricalNegCtrlFits))
   if(!is.null(negCtrl)){
     negCtrlFit = fitNegCtrl(as.numeric(negCtrl), maxDegree = maxDegree, minDegree = minDegree,
