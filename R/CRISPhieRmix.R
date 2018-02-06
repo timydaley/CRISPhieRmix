@@ -630,11 +630,12 @@ setBimodalParams <- function(mu, sigma, pq){
               sigmaNeg = sigmaNeg))
 }
 
-CRISPhieRmix2Groups(x, geneIds, negCtrlFit,
-                    max_iter = 100, tol = 1e-10, pq = 0.1, mu = -4, sigma = 1,
-                    nMesh = 100, maxDegree = 20, minDegree = 4,
-                    breaks = 101,
-                    VERBOSE = FALSE, PLOT = FALSE){
+CRISPhieRmix2Groups <- function(x, geneIds, negCtrlFit,
+                                max_iter = 100, tol = 1e-10, 
+                                pq = 0.1, mu = -4, sigma = 1,
+                                nMesh = 100, maxDegree = 20, 
+                                minDegree = 4,breaks = 101,
+                                VERBOSE = FALSE, PLOT = FALSE){
   mixFit = emprical2GroupEMmix(x, gene_info = geneIds,
                                null_coefficients = negCtrlFit[["coefficients"]],
                                null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
@@ -754,7 +755,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                          nMesh = 100, maxDegree = 20, minDegree = 4,
                          breaks = 101,
                          BIMODAL = FALSE,
-                         VERBOSE = FALSE, PLOT = FALSE){
+                         VERBOSE = FALSE, PLOT = FALSE){}
   #stopifnot(!is.null(neg.ctrl) | !is.null(empiricalNegCtrlFits))
   if(!is.null(negCtrl)){
     negCtrlFit = fitNegCtrl(as.numeric(negCtrl), maxDegree = maxDegree, minDegree = minDegree,
