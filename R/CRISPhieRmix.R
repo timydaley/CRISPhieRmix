@@ -16,188 +16,7 @@ logSumLogVec <- function(logVec){
   return(log_max + log(1 + sum(exp(logVec - log_max))))
 }
 
-skewtMixExpectationStep2comp <- function(x, skewtFit, mu, sigma, pq){
-  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
-  log_null_prob = log(1 - pq) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
-  log_denom = apply(cbind(log_pos_prob, log_null_prob), 1, logSumLogVec)
-  return(exp(log_pos_prob - log_denom))
-}
 
-skewNormalMixExpectationStep2comp <- function(x, skewNormalFit, mu, sigma, pq){
-  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
-  log_null_prob = log(1 - pq) + sn::dsn(x, dp = skewNormalFit$dp, log = TRUE)
-  log_denom = apply(cbind(log_pos_prob, log_null_prob), 1, logSumLogVec)
-  return(exp(log_pos_prob - log_denom))
-}
-
-skewtMixMaxStep2comp <- function(x, posProbs, skewtFit = NULL){
-  mu = 0
-  sigma = 0
-  pq = mean(posProbs)
-  mu = mean(posProbs*x)/mean(posProbs)
-  sigma = mean(posProbs*(x - mu)^2)/mean(posProbs)
-  if(is.null(skewtFit)){
-    skewtFit = sn::st.mple(y = x, w = 1 - posProbs)
-  }
-  return(list(pq = pq, mu = mu, sigma = sigma, skewtFit = skewtFit))
-}
-
-skewNormalMixMaxStep2comp <- function(x, posProbs, skewNormalFit = NULL){
-  mu = 0
-  sigma = 0
-  pq = mean(posProbs)
-  mu = mean(posProbs*x)/mean(posProbs)
-  sigma = mean(posProbs*(x - mu)^2)/mean(posProbs)
-  if(is.null(skewNormalFit)){
-    skewNormalFit = sn::sn.mple(y = x, w = 1 - posProbs)
-  }
-  return(list(pq = pq, mu = mu, sigma = sigma, skewNormalFit = skewNormalFit))
-}
-
-skewtLogLike <- function(x, pq, skewtFit, mu, sigma){
-  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
-  log_null_prob = log(1 - pq) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
-  return(sum(log(exp(log_pos_prob) + exp(log_null_prob))))
-}
-
-skewNormalLogLike <- function(x, pq, skewNormalFit, mu, sigma){
-  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
-  log_null_prob = log(1 - pq) + sn::dsn(x, dp = skewNormalFit$dp, log = TRUE)
-  return(sum(log(exp(log_pos_prob) + exp(log_null_prob))))
-}
-
-skewtEM <- function(x, skewtFit = NULL, max_iter = 1000, tol = 1e-10,
-                    pq = 0.1, mu = 4, sigma = 1, VERBOSE = FALSE){
-  n_obs = length(x)
-  providedFit = !is.null(skewtFit)
-  loglike = -1e100;
-  iter = 0;
-  posProbs = rep(pq, times = n_obs)
-  repeat{
-    prevloglike = loglike
-    # max step
-    if(providedFit){
-      updated_params = skewtMixMaxStep2comp(x, posProbs, skewtFit)
-    }
-    else{
-      updated_params = skewtMixMaxStep2comp(x, posProbs, skewtFit = NULL)
-    }
-    pq = updated_params$pq
-    mu = updated_params$mu
-    sigma = updated_params$sigma
-    skewtFit = updated_params$skewtFit
-    # expectation step
-    posProbs = skewtMixExpectationStep2comp(x, skewtFit, mu, sigma, pq)
-
-    loglike = skewtLogLike(x, pq, skewtFit, mu, sigma)
-    iter = iter + 1
-    if(VERBOSE & (iter %% 50 == 0)){
-      cat("iter: ", iter, "\n")
-    }
-    if((loglike - prevloglike)/n_obs < tol | iter > max_iter){
-      if(VERBOSE){
-        cat("stop after iteration ", iter, "\n")
-      }
-      break
-    }
-  }
-  return(list(guide_posterior = posProbs, skewtFit = skewtFit,
-              pq = pq, mu = mu, sigma = sigma))
-}
-
-skewNormalEM <- function(x, skewNormalFit = NULL, max_iter = 1000, tol = 1e-10,
-                    pq = 0.1, mu = 4, sigma = 1, VERBOSE = FALSE){
-  n_obs = length(x)
-  providedFit = !is.null(skewNormalFit)
-  loglike = -1e100;
-  iter = 0;
-  posProbs = rep(pq, times = n_obs)
-  repeat{
-    prevloglike = loglike
-    # max step
-    if(providedFit){
-      updated_params = skewNormalMixMaxStep2comp(x, posProbs, skewNormalFit)
-    }
-    else{
-      updated_params = skewNormalMixMaxStep2comp(x, posProbs, skewNormalFit = NULL)
-    }
-    pq = updated_params$pq
-    mu = updated_params$mu
-    sigma = updated_params$sigma
-    skewNormalFit = updated_params$skewNormalFit
-    # expectation step
-    posProbs = skewNormalMixExpectationStep2comp(x, skewNormalFit, mu, sigma, pq)
-
-    loglike = skewNormalLogLike(x, pq, skewNormalFit, mu, sigma)
-    iter = iter + 1
-    if(VERBOSE & (iter %% 50 == 0)){
-      cat("iter: ", iter, "\n")
-    }
-    if((loglike - prevloglike)/n_obs < tol | iter > max_iter){
-      if(VERBOSE){
-        cat("stop after iteration ", iter, "\n")
-      }
-      break
-    }
-  }
-  return(list(guide_posterior = posProbs, skewNormalFit = skewNormalFit,
-              pq = pq, mu = mu, sigma = sigma))
-}
-
-geneExpectationSkewtMix <- function(x, geneIds, q, p, skewtFit, mu = 5, sigma = 1){
-  log_pos_probs = sapply(unique(geneIds),
-                         function(i) sum(sapply(x[which(geneIds == i)],
-                                                function(y) logSumLogVec(c(log(q) + dnorm(y, mu, sigma, log = TRUE),
-                                                                           log(1 - q) + sn::dst(y,
-                                                                                                dp = skewtFit$dp,
-                                                                                                log = TRUE))))))
-  log_null_probs = sapply(unique(geneIds), function(i) sum(sn::dst(x[which(geneIds == i)],
-                                                                  dp = skewtFit$dp, log = TRUE)))
-  log_denom = sapply(1:length(unique(geneIds)),
-                    function(i)
-                      logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])))
-  return(exp(log(p) + log_pos_probs - log_denom))
-}
-
-geneExpectationSkewNormalMix <- function(x, geneIds, q, p, skewNormalFit, mu = 5, sigma = 1){
-  log_pos_probs = sapply(unique(geneIds),
-                         function(i) sum(sapply(x[which(geneIds == i)],
-                                                function(y) logSumLogVec(c(log(q) + dnorm(y, mu, sigma, log = TRUE),
-                                                                           log(1 - q) + sn::dsn(y,
-                                                                                                dp = skewNormalFit$dp,
-                                                                                                log = TRUE))))))
-  log_null_probs = sapply(unique(geneIds), function(i) sum(sn::dst(x[which(geneIds == i)],
-                                                                  dp = skewNormalFit$dp, log = TRUE)))
-  log_denom = sapply(1:length(unique(geneIds)),
-                     function(i)
-                       logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])))
-  return(exp(log(p) + log_pos_probs - log_denom))
-}
-
-
-
-integratedGeneExpectationSkewtMix <- function(x, geneIds, skewtFit, mu = 5, sigma = 1, pq = 0.1, nMesh = 1000){
-  q.grid = seq(from = pq, to = 1, length = nMesh + 2)
-  q.grid = q.grid[-c(1, length(q.grid))]
-  EZ_g.mat = sapply(1:length(q.grid),
-                    function(i) geneExpectationSkewtMix(x, geneIds, q.grid[i], pq/q.grid[i],
-                                                        skewtFit, mu, sigma),
-                    simplify = TRUE)
-
-  return(apply(EZ_g.mat, 1, mean))
-}
-
-integratedGeneExpectationSkewNormalMix <- function(x, geneIds, skewNormalFit, mu = 5,
-                                                   sigma = 1, pq = 0.1, nMesh = 1000){
-  q.grid = seq(from = pq, to = 1, length = nMesh + 2)
-  q.grid = q.grid[-c(1, length(q.grid))]
-  EZ_g.mat = sapply(1:length(q.grid),
-                    function(i) geneExpectationSkewNormalMix(x, geneIds, q.grid[i], pq/q.grid[i],
-                                                             skewNormalFit, mu, sigma),
-                    simplify = TRUE)
-
-  return(apply(EZ_g.mat, 1, mean))
-}
 
 geneExpectationNormalMix <- function(x, geneIds, q = 0.5, p = 0.1,
                                      mu0 = 0, sigma0 = 1, mu = 5, sigma = 1){
@@ -227,63 +46,7 @@ integratedGeneExpectationNormalMix <- function(x, geneIds, mu0 = 0, sigma0 = 1,
 }
 
 
-averageReplicatesSkewtMix <- function(x, geneIds, neg.ctrl = NULL,
-                                      skewtFits = NULL, max_iter = 100, tol = 1e-10,
-                                      pq = 0.1, mu0 = 4, sigma0 = 1, nMesh = 1000,
-                                      VERBOSE = FALSE){
-  nReps = dim(x)[2]
-  if(!is.null(neg.ctrl)){
-    stopifnot(dim(neg.ctrl)[2] == nReps)
-    skewtFits = lapply(1:nReps,
-                       function(i) sn::st.mple(y = neg.ctrl[,i]))
-  }
-  skewtMixFits = lapply(1:nReps,
-                        function(i) skewtEM(x[,i], skewtFit = skewtFits[[i]],
-                                            max_iter = max_iter, tol = tol,
-                                            pq = pq, mu = mu0, sigma = sigma0,
-                                            VERBOSE = VERBOSE))
-  names(skewtMixFits) = paste0("rep", 1:nReps)
-  genePosteriors = sapply(1:nReps,
-                          function(i) integratedGeneExpectationSkewtMix(x = x[,i], geneIds = geneIds,
-                                                                        skewtFit = skewtMixFits[[i]][["skewtFit"]],
-                                                                        mu = skewtMixFits[[i]][["mu"]],
-                                                                        sigma = skewtMixFits[[i]][["sigma"]],
-                                                                        pq = skewtMixFits[[i]][["pq"]],
-                                                                        nMesh = nMesh),
-                          simplify = TRUE)
-  return(list(genes = unique(geneIds),
-              score = apply(genePosteriors, 1, mean),
-              skewtMixFits = skewtMixFits))
-}
 
-averageReplicatesSkewNormalMix <- function(x, geneIds, neg.ctrl = NULL,
-                                           skewNormalFits = NULL, max_iter = 100, tol = 1e-10,
-                                           pq = 0.1, mu0 = 4, sigma0 = 1, nMesh = 1000,
-                                           VERBOSE = FALSE){
-  nReps = dim(x)[2]
-  if(!is.null(neg.ctrl)){
-    stopifnot(dim(neg.ctrl)[2] == nReps)
-    skewNormalFits = lapply(1:nReps,
-                       function(i) sn::sn.mple(y = neg.ctrl[,i]))
-  }
-  skewNormalMixFits = lapply(1:nReps,
-                             function(i) skewNormalEM(x[,i], skewNormalFit = skewNormalFits[[i]],
-                                                      max_iter = max_iter, tol = tol,
-                                                      pq = pq, mu = mu0, sigma = sigma0,
-                                                      VERBOSE = VERBOSE))
-  names(skewNormalMixFits) = paste0("rep", 1:nReps)
-  genePosteriors = sapply(1:nReps,
-                          function(i) integratedGeneExpectationSkewNormalMix(x = x[,i], geneIds = geneIds,
-                                                                             skewNormalFit = skewNormalMixFits[[i]][["skewtFit"]],
-                                                                             mu = skewNormalMixFits[[i]][["mu"]],
-                                                                             sigma = skewNormalMixFits[[i]][["sigma"]],
-                                                                             pq = skewNormalMixFits[[i]][["pq"]],
-                                                                             nMesh = nMesh),
-                          simplify = TRUE)
-  return(list(genes = unique(geneIds),
-              score = apply(genePosteriors, 1, mean),
-              skewNormalMixFits = skewNormalMixFits))
-}
 
 #' normalMix
 #'
@@ -330,7 +93,7 @@ normalMix <- function(x, geneIds, pq = 0.1, mu0 = 0, sigma0 = 1,
               normalMixFit = normalMixFit))
 }
 
-empiricalExpectationStep <- function(x, gene_info, null_coefficients,
+empiricalExpectationStep <- function(x, null_coefficients,
                                      null_log_norm_factor, mu, sigma, pq){
   log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
   log_neg_prob = log(1 - pq) +
@@ -340,42 +103,42 @@ empiricalExpectationStep <- function(x, gene_info, null_coefficients,
   return(exp(log_pos_prob - log_denom))
 }
 
-empiricalMaxStep <- function(x, gene_info, posProbs){
+empiricalMaxStep <- function(x, posProbs){
   pq = mean(posProbs)
   mu = mean(posProbs*x)/mean(posProbs)
-  sigma = mean(posProbs*(x - mu)^2)/mean(posProbs)
+  sigma = sqrt(mean(posProbs*(x - mu)^2)/mean(posProbs))
   return(list(pq = pq, mu = mu, sigma = sigma))
 }
 
 
-emprirical2GroupsMixtureLogLike <- function(x, pq, null_coefficients,
+empirical2GroupsMixtureLogLike <- function(x, pq, null_coefficients,
                                      null_log_norm_factor, mu, sigma){
   log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
-  log_neg_prob = log(1 - pq) +
+  log_null_prob = log(1 - pq) +
                  apply(t(null_coefficients[-1]*t(poly(x, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
                  null_coefficients[1] - null_log_norm_factor
   return(sum(log(exp(log_pos_prob) + exp(log_null_prob))))
 }
 
 
-emprical2GroupEMmix <- function(x, gene_info, null_coefficients, null_log_norm_factor,
+empirical2GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
                                 max_iter = 1000, tol = 1e-10, pq = 0.1,
                                 mu = 4, sigma = 1, VERBOSE = FALSE){
   n_obs = length(x)
-  loglike = emprirical2GroupsMixtureLogLike(x, pq, null_coefficients, null_log_norm_factor, mu, sigma)
+  loglike = empirical2GroupsMixtureLogLike(x, pq, null_coefficients, null_log_norm_factor, mu, sigma)
   prevloglike = -1e100;
   iter = 0;
   repeat{
     prevloglike = loglike
     # expectation step
-    posProbs = empiricalExpectationStep(x, gene_info, null_coefficients,
+    posProbs = empiricalExpectationStep(x, null_coefficients,
                                         null_log_norm_factor, mu, sigma, pq)
     # max step
-    updated_params = empiricalMaxStep(x, gene_info, posProbs)
+    updated_params = empiricalMaxStep(x, posProbs)
     pq = updated_params$pq
     mu = updated_params$mu
     sigma = updated_params$sigma
-    loglike = emprirical2GroupsMixtureLogLike(x, pq, null_coefficients, null_log_norm_factor, mu, sigma)
+    loglike = empirical2GroupsMixtureLogLike(x, pq, null_coefficients, null_log_norm_factor, mu, sigma)
     iter = iter + 1
     if(VERBOSE & (iter %% 50 == 0)){
       cat("iter: ", iter, "\n")
@@ -387,17 +150,18 @@ emprical2GroupEMmix <- function(x, gene_info, null_coefficients, null_log_norm_f
       break
     }
   }
-  return(list(gene = unique(gene_info),
-              posProbs = posProbs,
+  return(list(posProbs = posProbs,
               pq = pq, mu = mu, sigma = sigma,
               null_coefficients = null_coefficients,
               null_log_norm_factor = null_log_norm_factor,
               loglike = loglike))
 }
 
-empirical3GroupsExpectationStep <- function(x, gene_info, null_coefficients,
-                                            null_log_norm_factor, muNeg, muPos,
-                                            sigmaNeg, sigmaPos, qpNeg, qpPos){
+empirical3GroupsExpectationStep <- function(x, null_coefficients,
+                                            null_log_norm_factor, 
+                                            qpPos, qpNeg, 
+                                            muPos, muNeg,
+                                            sigmaPos, sigmaNeg){
   log_pos_prob = log(qpPos) + dnorm(x, mean = muPos, sd = sigmaPos, log = TRUE)
   log_neg_prob = log(qpNeg) + dnorm(x, mean = muNeg, sd = sigmaNeg, log = TRUE)
 
@@ -412,18 +176,19 @@ empirical3GroupsExpectationStep <- function(x, gene_info, null_coefficients,
 empirical3GroupsMaxStep <- function(x, posProbs, negProbs){
   qpPos = mean(posProbs)
   qpNeg = mean(negProbs)
-  muPos = mean(posProbs*x)/mean(posProbs)
-  sigmaPos = mean(posProbs*(x - muPos)^2)/mean(posProbs)
-  muNeg = mean(negProbs*x)/mean(negProbs)
-  sigmaNeg = mean(negProbs*(x - muPos)^2)/mean(posProbs)  
+  muPos = mean(posProbs*x)/qpPos
+  sigmaPos = sqrt(mean(posProbs*(x - muPos)^2)/qpPos)
+  muNeg = mean(negProbs*x)/qpNeg
+  sigmaNeg = sqrt(mean(negProbs*(x - muNeg)^2)/qpNeg)
   return(list(qpPos = qpPos, qpNeg = qpNeg, 
               muPos = muPos, muNeg = muNeg,
               sigmaPos = sigmaPos, sigmaNeg = sigmaNeg))
 }
 
 
-emprirical3GroupsMixtureLogLike <- function(x, null_coefficients, null_log_norm_factor, 
-                                            qpPos, qpNeg, muPos, muNeg,
+empirical3GroupsMixtureLogLike <- function(x, null_coefficients, null_log_norm_factor, 
+                                            qpPos, qpNeg, 
+                                            muPos, muNeg,
                                             sigmaPos, sigmaNeg){
   log_pos_prob = log(qpPos) + dnorm(x, mean = muPos, sd = sigmaPos, log = TRUE)
   log_neg_prob = log(qpNeg) + dnorm(x, mean = muNeg, sd = sigmaNeg, log = TRUE)
@@ -436,22 +201,24 @@ emprirical3GroupsMixtureLogLike <- function(x, null_coefficients, null_log_norm_
 }
 
 
-emprical3GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
+empirical3GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
                                 max_iter = 1000, tol = 1e-10, qpPos = 0.05, qpNeg = 0.05,
-                                muPos = 5, muNeg = -5, sigmaPos = 1, sigmahNeg = 1,
+                                muPos = 5, muNeg = -5, sigmaPos = 1, sigmaNeg = 1,
                                 VERBOSE = FALSE){
   n_obs = length(x)
-  loglike = emprirical3GroupsMixtureLogLike(x, null_coefficients, null_log_norm_factor, 
-                                            qpPos, qpNeg, muPos, muNeg,
+  loglike = empirical3GroupsMixtureLogLike(x, null_coefficients, null_log_norm_factor, 
+                                            qpPos, qpNeg, 
+                                            muPos, muNeg,
                                             sigmaPos, sigmaNeg)
   prevloglike = -1e100;
   iter = 0;
   repeat{
     prevloglike = loglike
     # expectation step
-    guideExpectations = empirical3GroupsExpectationStep(x, gene_info, null_coefficients,
-                                                        null_log_norm_factor, muNeg, muPos,
-                                                        sigmaNeg, sigmaPos, qpNeg, qpPos)
+    guideExpectations = empirical3GroupsExpectationStep(x, null_coefficients, null_log_norm_factor, 
+                                                        qpPos, qpNeg, 
+                                                        muPos, muNeg,
+                                                        sigmaPos, sigmaNeg)
     posProbs = guideExpectations$posProbs
     negProbs = guideExpectations$negProbs
     
@@ -464,22 +231,31 @@ emprical3GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
     sigmaPos = updated_params$sigmaPos
     sigmaNeg = updated_params$sigmaNeg
 
-    loglike = emprirical3GroupsMixtureLogLike(x, null_coefficients, null_log_norm_factor, 
+    loglike = empirical3GroupsMixtureLogLike(x, null_coefficients, null_log_norm_factor, 
                                               qpPos, qpNeg, muPos, muNeg,
                                               sigmaPos, sigmaNeg)
+    if(VERBOSE){
+      cat("iter = ", iter, "\n")
+      cat("loglike = ", loglike, "\n")
+      cat("muPos = ", muPos, "\n",
+          "muNeg = ", muNeg, "\n",
+          "sigmaPos = ", sigmaPos, "\n",
+          "sigmaNeg = ", sigmaNeg, "\n",
+          "qpPos = ", qpPos, "\n", 
+          "qpNeg = ", qpNeg, "\n")
+    }
     iter = iter + 1
     if(VERBOSE & (iter %% 50 == 0)){
       cat("iter: ", iter, "\n")
     }
-    if((loglike - prevloglike) < tol | iter > max_iter){
+    if(abs(loglike - prevloglike) < tol | iter > max_iter){
       if(VERBOSE){
         cat("stop after iteration ", iter, "\n")
       }
       break
     }
   }
-  return(list(gene = unique(gene_info),
-              posProbs = posProbs,
+  return(list(posProbs = posProbs,
               negProbs = negProbs,
               qpPos = qpPos,
               qpNeg = qpNeg,
@@ -516,7 +292,7 @@ gaussQuadGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients, 
   #q.grid = q.grid[-c(1, length(q.grid))]
   EZ_g.mat = sapply(1:nMesh,
                     function(i) quad.points.weights$weights[i]*geneExpectationEmpiricalMix(x, geneIds, q = quad.points.weights$nodes[i],
-                                                                                           p = pq/quad.points.weights$nodes[i],
+                                                                                           p = lowerLim/quad.points.weights$nodes[i],
                                                                                            mu = mu, sigma = sigma, null_coefficients,
                                                                                            null_log_norm_factor),
                     simplify = TRUE)
@@ -539,7 +315,7 @@ integratedGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients,
 }
 
 fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
-                       breaks = NULL, VERBOSE = FALSE, PLOT = FALSE){
+                       breaks = NULL, VERBOSE = FALSE){
   stopifnot(length(neg.ctrl) > maxDegree)
   if(VERBOSE){
     cat("negCtrl = ", head(neg.ctrl), "\n")
@@ -586,11 +362,7 @@ fitNegCtrl <- function(neg.ctrl, maxDegree = 20, minDegree = 4,
     }
     degree = degree + 2
   }
-  if(PLOT){
-    hist(neg.ctrl, breaks = breaks, probability = TRUE)
-    lines(breaks, exp(apply(t(lindsey.fit$coefficients[-1]*t(poly(breaks, degree = degree, raw = TRUE))), 1, sum)
-                      + lindsey.fit$coefficients[1] - (log(N) + log(d))), col = "red", lwd  = 2, lty = 2)
-  }
+
   return(list(coefficients = lindsey.fit$coefficients,
               log_norm_factor = log(N) + log(d)))
 }
@@ -636,7 +408,7 @@ CRISPhieRmix2Groups <- function(x, geneIds, negCtrlFit,
                                 nMesh = 100, maxDegree = 20, 
                                 minDegree = 4,breaks = 101,
                                 VERBOSE = FALSE, PLOT = FALSE){
-  mixFit = emprical2GroupEMmix(x, gene_info = geneIds,
+  mixFit = empirical2GroupEMmix(x, 
                                null_coefficients = negCtrlFit[["coefficients"]],
                                null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
                                max_iter = max_iter, tol = tol, pq = pq,
@@ -662,7 +434,8 @@ CRISPhieRmix2Groups <- function(x, geneIds, negCtrlFit,
                                                         lowerLim = mixFit[["pq"]],
                                                         nMesh = nMesh)
   
-  return(list(locfdr = 1 - genePosteriors,
+  return(list(genes = unique(geneIds),
+              locfdr = 1 - genePosteriors,
               genePosteriors = genePosteriors,
               mixFit = mixFit))
 }
@@ -673,12 +446,20 @@ CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
                                 nMesh = 100, breaks = 101,
                                 VERBOSE = FALSE, PLOT = FALSE){
   params = setBimodalParams(mu, sigma, pq)  
-  mixFit = emprical3GroupEMmix(x, null_coefficients = negCtrlFit[["coefficients"]], 
+  if(VERBOSE){
+    cat("muPos = ", params$muPos, "\n",
+        "muNeg = ", params$muNeg, "\n",
+        "sigmaPos = ", params$sigmaPos, "\n",
+        "sigmaNeg = ", params$sigmaNeg, "\n",
+        "qpPos = ", params$qpPos, "\n", 
+        "qpNeg = ", params$qpNeg, "\n")
+  }
+  mixFit = empirical3GroupEMmix(x, null_coefficients = negCtrlFit[["coefficients"]], 
                                null_log_norm_factor = negCtrlFit[["log_norm_factor"]],
                                max_iter = max_iter, tol = tol, 
                                qpPos = params$qpPos, qpNeg = params$qpNeg,
                                muPos = params$muPos, muNeg = params$muNeg, 
-                               sigmaPos = params$sigmaPos, sigmahNeg = params$sigmaNeg,
+                               sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
                                VERBOSE = VERBOSE)
   if(VERBOSE){
     cat("fit mixture \n")
@@ -711,7 +492,8 @@ CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
                                                            upperLim = mixFit[["qpPos"]],
                                                            nMesh = nMesh)
   
-  return(list(locfdr = 1 - posGenePosteriors - negGenePosteriors,
+  return(list(genes = unique(geneIds),
+              locfdr = 1 - posGenePosteriors - negGenePosteriors,
               posGenePosteriors = posGenePosteriors,
               negGenePosteriors = negGenePosteriors,
               mixFit = mixFit))
@@ -759,7 +541,13 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
   #stopifnot(!is.null(neg.ctrl) | !is.null(empiricalNegCtrlFits))
   if(!is.null(negCtrl)){
     negCtrlFit = fitNegCtrl(as.numeric(negCtrl), maxDegree = maxDegree, minDegree = minDegree,
-                            breaks = 101, VERBOSE = VERBOSE, PLOT = PLOT)
+                            breaks = 101, VERBOSE = VERBOSE)
+    if(PLOT){
+      s = seq(from = min(x), to = max(x), by = 0.1)
+      hist(negCtrl, breaks = 80, probability = TRUE, xlim = c(min(x), max(x)), main = "negative control fit")
+      lines(s, exp(apply(t(negCtrlFit$coefficients[-1]*t(poly(s, degree = degree, raw = TRUE))), 1, sum)
+                   + negCtrlFit$coefficients[1] - negCtrlFit$log_norm_factor), col = "red", lwd  = 2, lty = 2)
+    }
     if(VERBOSE){
       cat("fit negative control distributions \n")
     }
@@ -770,7 +558,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       CRISPhieRmixFit = CRISPhieRmix3Groups(x = x, geneIds = geneIds, negCtrlFit = negCtrlFit,
                                             max_iter = max_iter, tol = tol, pq = pq, 
                                             mu = mu, sigma = sigma, nMesh = nMesh,
-                                            breaks = 101, VERBOSE = FALSE, PLOT = FALSE)
+                                            breaks = 101, VERBOSE = VERBOSE, PLOT = PLOT)
       
     } else{
       stopifnot(length(mu) == 1)
@@ -780,7 +568,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       CRISPhieRmixFit = CRISPhieRmix2Groups(x, geneIds = geneIds, negCtrlFit = negCtrlFit, 
                                             max_iter = max_iter, tol = tol, pq = pq, 
                                             mu = mu, sigma = sigma, nMesh = nMesh, breaks = breaks,
-                                            VERBOSE = FALSE, PLOT = FALSE)
+                                            VERBOSE = VERBOSE, PLOT = PLOT)
     }
   } else{
     require(mixtools)
