@@ -117,7 +117,7 @@ empirical2GroupsMixtureLogLike <- function(x, pq, null_coefficients,
   log_null_prob = log(1 - pq) +
                  apply(t(null_coefficients[-1]*t(poly(x, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
                  null_coefficients[1] - null_log_norm_factor
-  return(sum(log(exp(log_pos_prob) + exp(log_null_prob))))
+  return(sum(apply(cbind(log_pos_prob, log_null_prob), 1, logSumLogVec)))
 }
 
 
@@ -569,6 +569,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                             max_iter = max_iter, tol = tol, pq = pq, 
                                             mu = mu, sigma = sigma, nMesh = nMesh, breaks = breaks,
                                             VERBOSE = VERBOSE, PLOT = PLOT)
+      
     }
   } else{
     require(mixtools)
@@ -584,12 +585,12 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                         sigma = normalMixFit[["sigma"]][[2]],
                                                         pq = normalMixFit[["lambda"]][[2]],
                                                         nMesh = nMesh)
-    mixFit = normalMixFit
     CRISPhieRmixFit = list(genes = unique(geneIds), 
                            locfdr = 1 - genePosteriors,
                            geneScores = genePosteriors,
                            mixFit = normalMixFit)
   }
+  CRISPhieRmixFit$locfdr = sapply(CRISPhieRmixFit$locfdr, function(x) max(x, 0))
   return(CRISPhieRmixFit)
 }
 
