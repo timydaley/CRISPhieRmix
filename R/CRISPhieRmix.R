@@ -545,7 +545,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     if(PLOT){
       s = seq(from = min(x), to = max(x), by = 0.1)
       hist(negCtrl, breaks = 80, probability = TRUE, xlim = c(min(x), max(x)), main = "negative control fit")
-      lines(s, exp(apply(t(negCtrlFit$coefficients[-1]*t(poly(s, degree = degree, raw = TRUE))), 1, sum)
+      lines(s, exp(apply(t(negCtrlFit$coefficients[-1]*t(poly(s, degree = length(negCtrlFit$coefficients) - 1, raw = TRUE))), 1, sum)
                    + negCtrlFit$coefficients[1] - negCtrlFit$log_norm_factor), col = "red", lwd  = 2, lty = 2)
     }
     if(VERBOSE){
