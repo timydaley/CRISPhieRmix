@@ -49,7 +49,7 @@ Now let's fit CRISPhieRmix to the log2 fold changes, including the VERBOSE and P
 
 ```{r}
 log2fcCRISPhieRmixFit = CRISPhieRmix(log2fc, geneIds = geneIds, negCtrl = negCtrl, mu = -2, nMesh = 100, PLOT = TRUE, VERBOSE = TRUE)
-log2fcCRISPhieRmixScores = data.frame(gene = log2fcCRISPhieRmixFit$gene, locfdr = 1 - log2fcCRISPhieRmixFit$score, score = log2fcCRISPhieRmixFit$score)
+log2fcCRISPhieRmixScores = data.frame(gene = log2fcCRISPhieRmixFit$genes, locfdr = log2fcCRISPhieRmixFit$locfdr, score = log2fcCRISPhieRmixFit$genePosterior)
 log2fcCRISPhieRmixScores$locfdr[which(log2fcCRISPhieRmixScores$locfdr < 0)] = 0
 log2fcCRISPhieRmixScores = log2fcCRISPhieRmixScores[order(log2fcCRISPhieRmixScores$locfdr, decreasing = FALSE), ]
 head(log2fcCRISPhieRmixScores, 20)
@@ -78,7 +78,7 @@ What if negative control guides are not available?  What we observe is that the 
 
 ```{r}
 log2fcNormalMixFit = CRISPhieRmix(log2fc, geneIds = geneIds, mu = -2, nMesh = 100, PLOT = TRUE, VERBOSE = TRUE)
-log2fcNormalMixScores = data.frame(gene = log2fcNormalMixFit$gene, locfdr = 1 - log2fcNormalMixFit$score)
+log2fcNormalMixScores = data.frame(gene = log2fcNormalMixFit$genes, locfdr = log2fcNormalMixFit$locfdr)
 log2fcNormalMixScores = log2fcNormalMixScores[order(log2fcNormalMixScores$locfdr, decreasing = FALSE), ]
 head(log2fcNormalMixScores, 20)
 hist(log2fcNormalMixScores$locfdr, breaks = 50, col = "grey", xlab = "CRISPhieRmix locfdr")
@@ -89,5 +89,5 @@ f = sapply(s, function(t) fdr.curve(t, estimatedFdr, Rosenbluh2017CRISPRiSim.ess
 plot(c(0, s[!is.na(f)]), c(0, f[!is.na(f)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "Normal hierarchical mixture", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "dodgerblue")
 abline(0, 1, lty = 2)
 
-cor(1- log2fcNormalMixFit$score, 1 - log2fcCRISPhieRmixFit$score, method = "spearman")
+cor(log2fcNormalMixFit$locfdr, log2fcCRISPhieRmixFit$locfdr, method = "spearman")
 ```
