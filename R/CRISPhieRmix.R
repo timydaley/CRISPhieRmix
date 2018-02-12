@@ -38,8 +38,8 @@ integratedGeneExpectationNormalMix <- function(x, geneIds, mu0 = 0, sigma0 = 1,
   q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   q.grid = q.grid[-c(1, length(q.grid))]
   EZ_g.mat = sapply(1:length(q.grid),
-                    function(i) geneExpectationNormalMix(x, geneIds, q.grid[i], pq/q.grid[i],
-                                                         mu0, sigma0, mu, sigma),
+                    function(i) geneExpectationNormalMix(x, geneIds, q = q.grid[i], p = pq/q.grid[i],
+                                                         mu0 = mu0, sigma0 = sigma0, mu = mu, sigma = sigma),
                     simplify = TRUE)
 
   return(apply(EZ_g.mat, 1, mean))
@@ -143,7 +143,7 @@ empirical2GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
     if(VERBOSE & (iter %% 50 == 0)){
       cat("iter: ", iter, "\n")
     }
-    if((loglike - prevloglike) < tol | iter > max_iter){
+    if(abs(loglike - prevloglike) < tol | iter > max_iter){
       if(VERBOSE){
         cat("stop after iteration ", iter, "\n")
       }
@@ -424,6 +424,8 @@ CRISPhieRmix2Groups <- function(x, geneIds, negCtrlFit,
     hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
     lines(b, mixFit$pq*dnorm(b, mixFit$mu, mixFit$sigma), lwd = 2, col = "darkgreen")
     lines(b, (1 - mixFit$pq)*exp(apply(t(mixFit$null_coefficients[-1]*t(poly(b, degree = length(mixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + mixFit$null_coefficients[1] - mixFit$null_log_norm_factor), col = "red", lwd  = 2)
+    lines(b, mixFit$pq*dnorm(b, mixFit$mu, mixFit$sigma) + 
+            (1 - mixFit$pq)*exp(apply(t(mixFit$null_coefficients[-1]*t(poly(b, degree = length(mixFit$null_coefficients) - 1, raw = TRUE))), 1, sum) + mixFit$null_coefficients[1] - mixFit$null_log_norm_factor), col = "darkviolet", lty = 2, lwd = 2)
   }
   
   genePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
@@ -572,6 +574,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       
     }
   } else{
+    if(VERBOSE){
+      cat("no negative controls provided, fitting hierarchical normal model \n")
+    }
     require(mixtools)
     normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
                                          sigma = c(1, sigma))
