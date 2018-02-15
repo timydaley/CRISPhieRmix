@@ -273,7 +273,7 @@ geneExpectationEmpiricalMix <- function(x, geneIds,
                                         log_norm_probs,
                                         log_null_guide_probs){
   log_null_probs = sapply(unique(geneIds),
-                         function(g) sum(log_null_guide_probs[which(geneIds == g)])
+                         function(g) sum(log_null_guide_probs[which(geneIds == g)]))
   log_pos_probs = sapply(unique(geneIds),
                          function(g) sum(sapply(which(geneIds == g),
                                                 function(i) logSumLogVec(c(log(q) + log_norm_probs[i],
