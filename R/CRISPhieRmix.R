@@ -268,16 +268,16 @@ empirical3GroupEMmix <- function(x, null_coefficients, null_log_norm_factor,
               loglike = loglike))
 }
 
-geneExpectationEmpiricalMix <- function(x, geneIds, q = 0.5, p = 0.1, mu = 5, sigma = 1,
-                                        null_coefficients, null_log_norm_factor){
+geneExpectationEmpiricalMix <- function(x, geneIds, 
+                                        q, p,
+                                        log_norm_probs,
+                                        log_null_guide_probs){
   log_null_probs = sapply(unique(geneIds),
-                         function(g) sum(apply(t(null_coefficients[-1]*t(poly(x[which(geneIds == g)], degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
-                                           null_coefficients[1] - null_log_norm_factor))
+                         function(g) sum(log_null_guide_probs[which(geneIds == g)])
   log_pos_probs = sapply(unique(geneIds),
-                         function(g) sum(sapply(x[which(geneIds == g)],
-                                                function(y) logSumLogVec(c(log(q) + dnorm(y, mu, sigma, log = TRUE),
-                                                                           log(1 - q) + apply(t(null_coefficients[-1]*t(poly(y, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
-                                                                           null_coefficients[1] - null_log_norm_factor)))))
+                         function(g) sum(sapply(which(geneIds == g),
+                                                function(i) logSumLogVec(c(log(q) + log_norm_probs[i],
+                                                                           log(1 - q) + log_null_guide_probs[i])))))
   log_denom = sapply(1:length(unique(geneIds)),
                      function(i)
                        logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])))
@@ -287,14 +287,17 @@ geneExpectationEmpiricalMix <- function(x, geneIds, q = 0.5, p = 0.1, mu = 5, si
 gaussQuadGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients, null_log_norm_factor,
                                                  mu = 5, sigma = 1, lowerLim = 0.1, upperLim = 1, 
                                                  nMesh = 100){
+  log_null_guide_probs = apply(t(null_coefficients[-1]*t(poly(x, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
+    null_coefficients[1] - null_log_norm_factor
+  log_norm_probs = dnorm(x, mu, sigma, log = TRUE)
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   #q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   #q.grid = q.grid[-c(1, length(q.grid))]
   EZ_g.mat = sapply(1:nMesh,
                     function(i) quad.points.weights$weights[i]*geneExpectationEmpiricalMix(x, geneIds, q = quad.points.weights$nodes[i],
                                                                                            p = lowerLim/quad.points.weights$nodes[i],
-                                                                                           mu = mu, sigma = sigma, null_coefficients,
-                                                                                           null_log_norm_factor),
+                                                                                           log_norm_probs = log_norm_probs,
+                                                                                           log_null_guide_probs = log_null_guide_probs),
                     simplify = TRUE)
 
   return(apply(EZ_g.mat, 1, sum))
@@ -303,12 +306,15 @@ gaussQuadGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients, 
 
 integratedGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients, null_log_norm_factor,
                                                   mu = 5, sigma = 1, pq = 0.1, nMesh = 1000){
+  log_null_guide_probs = apply(t(null_coefficients[-1]*t(poly(x, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
+    null_coefficients[1] - null_log_norm_factor
+  log_norm_probs = dnorm(x, mu, sigma, log = TRUE)
   q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   q.grid = q.grid[-c(1, length(q.grid))]
   EZ_g.mat = sapply(1:length(q.grid),
                     function(i) geneExpectationEmpiricalMix(x, geneIds, q = q.grid[i], p = pq/q.grid[i],
-                                                            mu = mu, sigma = sigma, null_coefficients,
-                                                            null_log_norm_factor),
+                                                            log_norm_probs = log_norm_probs,
+                                                            log_null_guide_probs = log_null_guide_probs),
                     simplify = TRUE)
 
   return(apply(EZ_g.mat, 1, mean))
@@ -491,7 +497,7 @@ CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
                                                            mu = mixFit[["muNeg"]],
                                                            sigma = mixFit[["sigmaNeg"]],
                                                            lowerLim = mixFit[["qpNeg"]],
-                                                           upperLim = mixFit[["qpPos"]],
+                                                           upperLim = 1 - mixFit[["qpPos"]],
                                                            nMesh = nMesh)
   
   return(list(genes = unique(geneIds),
