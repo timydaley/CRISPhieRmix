@@ -16,30 +16,115 @@ logSumLogVec <- function(logVec){
   return(log_max + log(1 + sum(exp(logVec - log_max))))
 }
 
+LogSumWeightedAverage <- function(logprobs, q){
+  stopifnot(dim(logprobs)[2] == 2)
+  r = sum(vapply(1:dim(logprobs)[1], function(i) logSumLogVec(c(log(q) + logprobs[i, 1],
+                                                                log(1 - q) + logprobs[i, 2])),
+                 FUN.VALUE = double(1)))
+  return(r)
+}
 
+geneExpectations2Group <-function(x, geneIds, q, p,
+                                  log_alt_guide_probs,
+                                  log_null_guide_probs){
+  log_null_gene_probs = by(log_null_guide_probs, geneIds, sum)
+  logprobs = data.frame(log_alt_guide_probs = log_alt_guide_probs,
+                        log_null_guide_probs = log_null_guide_probs)
+  log_pos_gene_probs = by(d, geneIds, function(y) LogSumWeightedAverage(y, q))
+  log_denom = vapply(1:length(unique(geneIds)),
+                     function(i)
+                       logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])),
+                     FUN.VALUE = double(1))
+  return(exp(log(p) + log_pos_probs - log_denom))
+}
+
+geneExpectations3Groups <-function(x, geneIds, q, p,
+                                  log_pos_guide_probs,
+                                  log_neg_guide_probs,
+                                  log_null_guide_probs){
+  log_null_gene_probs = by(log_null_guide_probs, geneIds, sum)
+  logprobs = data.frame(log_alt_guide_probs = log_alt_guide_probs,
+                        log_null_guide_probs = log_null_guide_probs)
+  log_pos_gene_probs = by(d, geneIds, function(y) LogSumWeightedAverage(y, q))
+  log_denom = vapply(1:length(unique(geneIds)),
+                     function(i)
+                       logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])),
+                     FUN.VALUE = double(1))
+  return(exp(log(p) + log_pos_probs - log_denom))
+}
+
+gaussQuadGeneExpectation2Groups <- function(x, geneIds, 
+                                            log_alt_guide_probs,
+                                            log_null_guide_probs,
+                                            lowerLim = 0.1, upperLim = 1, 
+                                            nMesh = 100){
+
+  quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
+  nGenes = length(unique(geneIds))
+  EZ_g.mat = vapply(1:nMesh,
+                    function(i) quad.points.weights$weights[i]*geneExpectations2Group(x, geneIds,
+                                                                                      q = quad.points.weights$nodes[i],
+                                                                                      p = lowerLim/quad.points.weights$nodes[i],
+                                                                                      log_alt_guide_probs = log_alt_guide_probs,
+                                                                                      log_null_guide_probs = log_null_guide_probs),
+                    FUN.VALUE = double(nGenes))
+  EZ_g.mat = t(EZ_g.mat)
+  return(apply(EZ_g.mat, 2, sum))
+}
+
+integratedGeneExpectation2Groups <- function(x, geneIds, 
+                                             log_alt_guide_probs,
+                                             log_null_guide_probs,
+                                             lowerLim = 0.1, upperLim = 1, 
+                                             nMesh = 100){
+  q.grid = seq(from = lowerLim, to = upperLim, length = nMesh + 2)
+  q.grid = q.grid[-c(1, length(q.grid))]
+  nGenes = length(unique(geneIds))
+  EZ_g.mat = vapply(1:length(q.grid),
+                    function(i) geneExpectations2Group(x, geneIds, q = q.grid[i], p = lowerLim/q.grid[i],
+                                                       log_alt_guide_probs = log_alt_guide_probs,
+                                                       log_null_guide_probs = log_null_guide_probs),
+                    FUN.VALUE = double(nGenes))
+  
+  return(apply(EZ_g.mat, 1, mean))
+}
 
 geneExpectationNormalMix <- function(x, geneIds, q = 0.5, p = 0.1,
                                      mu0 = 0, sigma0 = 1, mu = 5, sigma = 1){
-  log_null_probs = sapply(unique(geneIds),
-                         function(g) sum(dnorm(x[which(geneIds == g)], mu0, sigma0, log = TRUE)))
-  log_pos_probs = sapply(unique(geneIds),
-                         function(g) sum(sapply(x[which(geneIds == g)],
-                                                function(y) logSumLogVec(c(log(q) + dnorm(y, mu, sigma, log = TRUE),
-                                                                           log(1 - q) + dnorm(y, mu0, sigma0, log = TRUE))))))
-  log_denom = sapply(1:length(unique(geneIds)),
+  log_null_guide_probs = dnorm(x, mu0, sigma0, log = TRUE)
+  log_pos_guide_probs = dnorm(x, mu, sigma, log = TRUE)
+  
+  log_null_gene_probs = by(log_null_guide_probs, geneIds, sum)
+  d = data.frame(log_pos_guide_probs = log_pos_guide_probs, 
+                 log_null_guide_probs = log_null_guide_probs)
+  log_pos_gene_probs = by(d, geneIds, function(y) LogSumWeightedAverage(y$log_pos_guide_probs, y$log_null_guide_probs, 2))
+  #log_null_probs = vapply(unique(geneIds), function(g) sum(dnorm(x[which(geneIds == g)], mu0, sigma0, log = TRUE)))
+  #log_pos_probs = vapply(unique(geneIds),
+  #                      function(g) sum(vapply(x[which(geneIds == g)],
+  #                                             function(y) logSumLogVec(c(log(q) + dnorm(y, mu, sigma, log = TRUE),
+  #                                                                        log(1 - q) + dnorm(y, mu0, sigma0, log = TRUE))))))
+  
+  d = data.frame(log_pos_gene_probs = log_pos_gene_probs, 
+                 log_null_gene_probs = log_null_gene_probs)
+  log_denom = vapply(1:length(log_pos_gene_probs),
                      function(i)
-                       logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])))
+                       logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])), 
+                     FUN.VALUE = double(1))
   return(exp(log(p) + log_pos_probs - log_denom))
 }
 
 
 integratedGeneExpectationNormalMix <- function(x, geneIds, mu0 = 0, sigma0 = 1,
                                               mu = 5, sigma = 1, pq = 0.1, nMesh = 1000){
+  log_null_guide_probs = dnorm(x, mu0, sigma0, log = TRUE)
+  log_alt_guide_probs = dnorm(x, mu, sigma, log = TRUE)
+  
   q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   q.grid = q.grid[-c(1, length(q.grid))]
   EZ_g.mat = sapply(1:length(q.grid),
-                    function(i) geneExpectationNormalMix(x, geneIds, q = q.grid[i], p = pq/q.grid[i],
-                                                         mu0 = mu0, sigma0 = sigma0, mu = mu, sigma = sigma),
+                    function(i) geneExpectations2Group(x, geneIds, q = q.grid[i], p = pq/q.grid[i],
+                                                       log_alt_guide_probs = log_alt_guide_probs,
+                                                       log_null_guide_probs = log_null_guide_probs),
                     simplify = TRUE)
 
   return(apply(EZ_g.mat, 1, mean))
@@ -272,15 +357,19 @@ geneExpectationEmpiricalMix <- function(x, geneIds,
                                         q, p,
                                         log_norm_probs,
                                         log_null_guide_probs){
-  log_null_probs = sapply(unique(geneIds),
-                         function(g) sum(log_null_guide_probs[which(geneIds == g)]))
-  log_pos_probs = sapply(unique(geneIds),
-                         function(g) sum(sapply(which(geneIds == g),
+  log_null_probs = by(log_null_guide_probs, geneIds, sum)
+  d = data.frame()
+  log_pos_probs = 
+  log_pos_probs = vapply(unique(geneIds),
+                         function(g) sum(vapply(which(geneIds == g),
                                                 function(i) logSumLogVec(c(log(q) + log_norm_probs[i],
-                                                                           log(1 - q) + log_null_guide_probs[i])))))
-  log_denom = sapply(1:length(unique(geneIds)),
+                                                                           log(1 - q) + log_null_guide_probs[i])),
+                                                FUN.VALUE = double(1))),
+                         FUN.VALUE = double(1))
+  log_denom = vapply(1:length(unique(geneIds)),
                      function(i)
-                       logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])))
+                       logSumLogVec(c(log(p) + log_pos_probs[i], log(1 - p) + log_null_probs[i])), 
+                     FUN.VALUE = double(1))
   return(exp(log(p) + log_pos_probs - log_denom))
 }
 
@@ -293,12 +382,12 @@ gaussQuadGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients, 
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   #q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   #q.grid = q.grid[-c(1, length(q.grid))]
-  EZ_g.mat = sapply(1:nMesh,
+  EZ_g.mat = vapply(1:nMesh,
                     function(i) quad.points.weights$weights[i]*geneExpectationEmpiricalMix(x, geneIds, q = quad.points.weights$nodes[i],
                                                                                            p = lowerLim/quad.points.weights$nodes[i],
                                                                                            log_norm_probs = log_norm_probs,
                                                                                            log_null_guide_probs = log_null_guide_probs),
-                    simplify = TRUE)
+                    FUN.VALUE = double(length(unique(geneIds))))
 
   return(apply(EZ_g.mat, 1, sum))
 }
@@ -309,13 +398,14 @@ integratedGeneExpectationEmpiricalMix <- function(x, geneIds, null_coefficients,
   log_null_guide_probs = apply(t(null_coefficients[-1]*t(poly(x, degree = length(null_coefficients) - 1, raw = TRUE))), 1, sum) +
     null_coefficients[1] - null_log_norm_factor
   log_norm_probs = dnorm(x, mu, sigma, log = TRUE)
+  nGenes = length(unique(geneIds))
   q.grid = seq(from = pq, to = 1, length = nMesh + 2)
   q.grid = q.grid[-c(1, length(q.grid))]
-  EZ_g.mat = sapply(1:length(q.grid),
+  EZ_g.mat = vapply(1:length(q.grid),
                     function(i) geneExpectationEmpiricalMix(x, geneIds, q = q.grid[i], p = pq/q.grid[i],
                                                             log_norm_probs = log_norm_probs,
                                                             log_null_guide_probs = log_null_guide_probs),
-                    simplify = TRUE)
+                    FUN.VALUE = double(nGenes))
 
   return(apply(EZ_g.mat, 1, mean))
 }
@@ -483,22 +573,36 @@ CRISPhieRmix3Groups <- function(x, geneIds, negCtrlFit,
   }
   
   # can we compute the following independently? 
-  posGenePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
-                                                           negCtrlFit[["coefficients"]],
-                                                           negCtrlFit[["log_norm_factor"]],
-                                                           mu = mixFit[["muPos"]],
-                                                           sigma = mixFit[["sigmaPos"]],
-                                                           lowerLim = mixFit[["qpPos"]],
-                                                           upperLim = 1 - mixFit[["qpNeg"]],
-                                                           nMesh = nMesh)
-  negGenePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
-                                                           negCtrlFit[["coefficients"]],
-                                                           negCtrlFit[["log_norm_factor"]],
-                                                           mu = mixFit[["muNeg"]],
-                                                           sigma = mixFit[["sigmaNeg"]],
-                                                           lowerLim = mixFit[["qpNeg"]],
-                                                           upperLim = 1 - mixFit[["qpPos"]],
-                                                           nMesh = nMesh)
+  log_null_guide_probs = apply(t(negCtrlFit[["coefficients"]][-1]*t(poly(x, degree = length(negCtrlFit[["coefficients"]]) - 1, raw = TRUE))), 1, sum) +
+    negCtrlFit[["coefficients"]][1] - negCtrlFit[["log_norm_factor"]]
+  log_pos_guide_probs = dnorm(x, mean = mixFit[["muPos"]], sd = mixFit[["sigmaPos"]], log = TRUE)
+  log_neg_guide_probs = dnorm(x, mean = mixFit[["muPos"]], sd = mixFit[["sigmaPos"]], log = TRUE)
+  
+  posGenePosteriors = gaussQuadGeneExpectation2Groups(x, geneIds = geneIds,
+                                                      log_alt_guide_probs = log_pos_guide_probs,
+                                                      log_null_guide_probs = log_null_guide_probs,
+                                                      lowerLim = mixFit[["qpPos"]],
+                                                      upperLim = 1 - mixFit[["qpNeg"]], 
+                                                      nMesh = 100)
+  
+#  posGenePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds,
+#                                                           negCtrlFit[["coefficients"]],
+#                                                           negCtrlFit[["log_norm_factor"]],
+#                                                           mu = mixFit[["muPos"]],
+#                                                           sigma = mixFit[["sigmaPos"]],
+#                                                           lowerLim = mixFit[["qpPos"]],
+#                                                           upperLim = 1 - mixFit[["qpNeg"]],
+#                                                           nMesh = nMesh)
+  negGenePosteriors = gaussQuadGeneExpectation2Groups(x, geneIds = geneIds,
+                                                      log_alt_guide_probs = log_neg_guide_probs,
+                                                      log_null_guide_probs = log_null_guide_probs,
+                                                      lowerLim = mixFit[["qpPos"]],
+                                                      upperLim = 1 - mixFit[["qpNeg"]], 
+                                                      nMesh = 100)
+#    negGenePosteriors = gaussQuadGeneExpectationEmpiricalMix(x, geneIds, negCtrlFit[["coefficients"]], negCtrlFit[["log_norm_factor"]],
+#                                                             mu = mixFit[["muNeg"]], sigma = mixFit[["sigmaNeg"]],
+#                                                             lowerLim = mixFit[["qpNeg"]], upperLim = 1 - mixFit[["qpPos"]],
+#                                                             nMesh = nMesh)
   
   return(list(genes = unique(geneIds),
               locfdr = 1 - posGenePosteriors - negGenePosteriors,
@@ -589,19 +693,24 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     if(PLOT){
       plot(normalMixFit, density = TRUE)[2]
     }
-    genePosteriors = integratedGeneExpectationNormalMix(x, geneIds = geneIds,
-                                                        mu0 = normalMixFit[["mu"]][[1]],
-                                                        mu = normalMixFit[["mu"]][[2]],
-                                                        sigma0 = normalMixFit[["sigma"]][[1]],
-                                                        sigma = normalMixFit[["sigma"]][[2]],
-                                                        pq = normalMixFit[["lambda"]][[2]],
-                                                        nMesh = nMesh)
+    log_alt_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[2]], sd = normalMixFit[["sigma"]][[2]], log = TRUE)
+    log_null_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[1]], sd = normalMixFit[["sigma"]][[1]], log = TRUE)
+    
+    genePosteriors = gaussQuadGeneExpectation2Groups(x, geneIds = geneIds,
+                                                      log_alt_guide_probs = log_alt_guide_probs,
+                                                      log_null_guide_probs = log_null_guide_probs,
+                                                      lowerLim = normalMixFit[["lambda"]][[2]], 
+                                                      upperLim = 1, nMesh = 100)
+#    genePosteriors = integratedGeneExpectationNormalMix(x, geneIds = geneIds, mu0 = normalMixFit[["mu"]][[1]],
+#                                                        mu = normalMixFit[["mu"]][[2]], sigma0 = normalMixFit[["sigma"]][[1]],
+#                                                        sigma = normalMixFit[["sigma"]][[2]],  pq = normalMixFit[["lambda"]][[2]], nMesh = nMesh)
     CRISPhieRmixFit = list(genes = unique(geneIds), 
                            locfdr = 1 - genePosteriors,
                            geneScores = genePosteriors,
                            mixFit = normalMixFit)
   }
-  CRISPhieRmixFit$locfdr = sapply(CRISPhieRmixFit$locfdr, function(x) max(x, 0))
+  CRISPhieRmixFit$locfdr = vapply(CRISPhieRmixFit$locfdr, function(x) max(x, 0),
+                                  FUN.VALUE = double(1))
   return(CRISPhieRmixFit)
 }
 
