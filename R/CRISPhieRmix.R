@@ -30,7 +30,7 @@ geneExpectations2Group <-function(x, geneIds, q, p,
   log_null_gene_probs = by(log_null_guide_probs, geneIds, sum)
   logprobs = data.frame(log_alt_guide_probs = log_alt_guide_probs,
                         log_null_guide_probs = log_null_guide_probs)
-  log_pos_gene_probs = by(d, geneIds, function(y) LogSumWeightedAverage(y, q))
+  log_pos_gene_probs = by(logprobs, geneIds, function(y) LogSumWeightedAverage(y, q))
   log_denom = vapply(1:length(unique(geneIds)),
                      function(i)
                        logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])),
@@ -45,7 +45,7 @@ geneExpectations3Groups <-function(x, geneIds, q, p,
   log_null_gene_probs = by(log_null_guide_probs, geneIds, sum)
   logprobs = data.frame(log_alt_guide_probs = log_alt_guide_probs,
                         log_null_guide_probs = log_null_guide_probs)
-  log_pos_gene_probs = by(d, geneIds, function(y) LogSumWeightedAverage(y, q))
+  log_pos_gene_probs = by(logprobs, geneIds, function(y) LogSumWeightedAverage(y, q))
   log_denom = vapply(1:length(unique(geneIds)),
                      function(i)
                        logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])),
