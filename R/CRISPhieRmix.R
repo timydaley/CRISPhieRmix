@@ -35,7 +35,7 @@ geneExpectations2Group <-function(x, geneIds, q, p,
                      function(i)
                        logSumLogVec(c(log(p) + log_pos_gene_probs[i], log(1 - p) + log_null_gene_probs[i])),
                      FUN.VALUE = double(1))
-  return(exp(log(p) + log_pos_probs - log_denom))
+  return(exp(log(p) + log_pos_gene_probs - log_denom))
 }
 
 geneExpectations3Groups <-function(x, geneIds, q, p,
