@@ -317,9 +317,6 @@ setBimodalParams <- function(mu, sigma, pq){
 #' @param mu initial value of mu for the interesting genes, default = 4
 #' @param sigma initial value of sigma for the interesting genes, default = 1
 #' @param nMesh the number of points to use in numerical integration of posterior probabilities, default = 100
-#' @param maxDegree the maximum degree of the Lindsey fit, default = 20
-#' @param minDegree the minimum degree of the Lindsey fit, default = 4
-#' @param breaks either a number indicating the number of breaks or the sequence of breaks, default = 101
 #' @param VERBOSE boolean variable for VERBOSE mode, default = FALSE
 #' @param PLOT boolean variable to produce plots, default = FALSE
 #' @return a list containing genes, the corresponding posterior probabilities of being non-null,
@@ -359,7 +356,8 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
                               qpPos = params$qpPos, qpNeg = params$qpNeg, 
                               muPos = params$muPos, muNeg = params$muNeg, sigma = sigma,
-                              VERBOSE = VERBOSE)
+                              VERBOSE = FALSE)
+      
       if(PLOT){
        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
@@ -370,8 +368,8 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                 (1 - skewtMix$qpPos - skewtMix$qpNeg)*sn::dst(b, dp = negCtrlFit$dp), col = "darkviolet", lty = 2, lwd = 2)
       }
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
-      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sigma = skewtMix$sigmaPos, log = TRUE)
-      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sigma = skewtMix$sigmaNeg, log = TRUE)
+      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigmaPos, log = TRUE)
+      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigmaNeg, log = TRUE)
       posGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
                                                           log_alt_guide_probs = log_pos_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
@@ -396,7 +394,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         cat("2 groups \n")
       }
       skewtMix = skewtEM2comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
-                              pq = pq, mu = mu, sigma = sigma, VERBOSE = VERBOSE)
+                              pq = pq, mu = mu, sigma = sigma, VERBOSE = FALSE)
       if(VERBOSE){
         cat("EM converged \n")
         cat("mu = ", skewtMix$mu, "\n")
@@ -413,7 +411,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       }
      
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
-      log_alt_guide_probs = dnorm(x, mean = skewtMix$mu, sigma = skewtMix$sigma, log = TRUE)
+      log_alt_guide_probs = dnorm(x, mean = skewtMix$mu, sd = skewtMix$sigma, log = TRUE)
       
       genePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
                                                        log_alt_guide_probs = log_alt_guide_probs,
@@ -434,7 +432,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
                                          sigma = c(1, sigma))
     if(PLOT){
-      plot(normalMixFit, density = TRUE)[2]
+      plot(normalMixFit, density = TRUE, whichplots = 2)
     }
     log_alt_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[2]], sd = normalMixFit[["sigma"]][[2]], log = TRUE)
     log_null_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[1]], sd = normalMixFit[["sigma"]][[1]], log = TRUE)
