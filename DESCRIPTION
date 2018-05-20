@@ -7,7 +7,7 @@ Maintainer: Timothy Daley <tdaley@stanford.edu>
 Description:  A tool for identifying interesting genes in large pooled CRISPRi and CRISPRa screen using hierarchical mixture models
 Depends: R(>= 3.4.2)
 LinkingTo:
-  Rcpp
+  Rcpp(>= 0.12.17)
 Imports:
   Rcpp 
   statmod
