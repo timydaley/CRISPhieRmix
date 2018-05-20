@@ -9,8 +9,8 @@ Depends: R(>= 3.4.2)
 LinkingTo:
   Rcpp(>= 0.12.17)
 Imports:
-  Rcpp(>= 0.12.17)
-  statmod(>= 1.4.30)
+  Rcpp,
+  statmod 
 Suggests:
   sn
 License: GPL-3
