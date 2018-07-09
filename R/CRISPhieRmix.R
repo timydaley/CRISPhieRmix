@@ -276,8 +276,7 @@ setBimodalParams <- function(mu, sigma, pq){
   if(length(mu) == 1){
     muPos = abs(mu)
     muNeg = -abs(mu)
-  }
-  else{
+  } else{
     muPos = max(mu)
     stopifnot(muPos > 0)
     muNeg = min(mu)
@@ -286,16 +285,14 @@ setBimodalParams <- function(mu, sigma, pq){
   if(length(sigma) == 1){
     sigmaPos = sigma
     sigmaNeg = sigma
-  }
-  else{
+  }  else{
     sigmaPos = sigma[which.max(mu)]
     sigmaNeg = sigma[which.min(mu)]
   }
   if(length(pq) == 1){
     qpPos = pq/2
     qpNeg = pq/2
-  }
-  else{
+  } else{
     qpPos = pq[which.max(mu)]
     qpNeg = pq[which.min(mu)]
   }
