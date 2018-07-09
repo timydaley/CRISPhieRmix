@@ -272,7 +272,7 @@ fitNegCtrl <- function(neg.ctrl, VERBOSE = FALSE){
               log_norm_factor = log(N) + log(d)))
 }
 
-setBimodalParams <- function(mu = 4, sigma = 1, pq = 0.05){
+setBimodalParams <- function(mu, sigma, pq){
   if(length(mu) == 1){
     muPos = abs(mu)
     muNeg = -abs(mu)
@@ -340,7 +340,7 @@ setBimodalParams <- function(mu = 4, sigma = 1, pq = 0.05){
 CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                          max_iter = 100, tol = 1e-10, 
                          pq = 0.1, mu = -4, sigma = 1,
-                         nMesh = 10,  BIMODAL = FALSE,
+                         nMesh = 100,  BIMODAL = FALSE,
                          VERBOSE = FALSE, PLOT = FALSE){
   if(!is.null(negCtrl)){
     negCtrlFit = sn::st.mple(y = negCtrl)
@@ -438,7 +438,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       if(VERBOSE){
         cat("3 groups \n")
       }
-      params = setBimodalParams(mu = mu, sigma = sigma, pq = pq)
+      params = setBimodalParams(mu, sigma, pq)
       normalMixFit = mixtools::normalmixEM(x, k = 3, mu = c(0, params$muPos, params$muNeg),
                                            sigma = c(1, params$sigmaPos, params$sigmaNeg),
                                            mean.constr = c(0, "a", "-b"))
