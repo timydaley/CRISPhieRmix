@@ -283,7 +283,7 @@ setBimodalParams <- function(mu = 4, sigma = 1, pq = 0.05){
     muNeg = min(mu)
     stopifnot(muNeg < 0)
   }
-  if(length(sigma == 1)){
+  if(length(sigma) == 1){
     sigmaPos = sigma
     sigmaNeg = sigma
   }
