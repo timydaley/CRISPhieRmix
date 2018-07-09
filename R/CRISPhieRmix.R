@@ -356,7 +356,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       if(VERBOSE){
         cat("3 groups \n")
       }
-      params = setBimodalParams(mu, pq)
+      params = setBimodalParams(mu, sigma, pq)
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
                               qpPos = params$qpPos, qpNeg = params$qpNeg, 
                               muPos = params$muPos, muNeg = params$muNeg, sigma = sigma,
@@ -429,28 +429,65 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     }
   }
   else{
+    
     if(VERBOSE){
       cat("no negative controls provided, fitting hierarchical normal model \n")
     }
     require(mixtools)
-    normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
-                                         sigma = c(1, sigma))
-    if(PLOT){
-      plot(normalMixFit, density = TRUE, whichplots = 2)
+    if(BIMODAL){
+      if(VERBOSE){
+        cat("3 groups \n")
+      }
+      params = setBimodalParams(mu, sigma, pq)
+      normalMixFit = mixtools::normalmixEM(x, k = 3, mu = c(0, params$muPos, params$muNeg),
+                                           sigma = c(1, params$sigmaPos, params$sigmaNeg),
+                                           mean.constr = c(0, "a", "-b"))
+      
+      if(PLOT){
+        plot(normalMixFit, density = TRUE, whichplots = 2)
+      }
+      log_null_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[1]], sd = normalMixFit[["sigma"]][[1]], log = TRUE)
+      log_pos_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[2]], sd = normalMixFit[["sigma"]][[2]], log = TRUE)
+      log_neg_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[3]], sd = normalMixFit[["sigma"]][[3]], log = TRUE)
+      posGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
+                                                          log_alt_guide_probs = log_pos_guide_probs,
+                                                          log_null_guide_probs = log_null_guide_probs,
+                                                          lowerLim = normalMixFit$lambda[2], 
+                                                          upperLim = 1 - normalMixFit$lambda[2], 
+                                                          nMesh = nMesh)
+      negGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
+                                                          log_alt_guide_probs = log_neg_guide_probs,
+                                                          log_null_guide_probs = log_null_guide_probs,
+                                                          lowerLim = normalMixFit$lambda[3], 
+                                                          upperLim = 1 - normalMixFit$lambda[3], 
+                                                          nMesh = nMesh)
+      mixFit = list(genes = unique(geneIds),
+                    locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y)),
+                    posGenePosteriors = posGenePosteriors,
+                    negGenePosteriors = negGenePosteriors,
+                    mixFit = normalMixFit)
+      
     }
-    log_alt_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[2]], sd = normalMixFit[["sigma"]][[2]], log = TRUE)
-    log_null_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[1]], sd = normalMixFit[["sigma"]][[1]], log = TRUE)
+    else{
+      normalMixFit = mixtools::normalmixEM(x, k = 2, mu = c(0, mu),
+                                         sigma = c(1, sigma))
+      if(PLOT){
+        plot(normalMixFit, density = TRUE, whichplots = 2)
+      }
+      log_alt_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[2]], sd = normalMixFit[["sigma"]][[2]], log = TRUE)
+      log_null_guide_probs = dnorm(x, mean = normalMixFit[["mu"]][[1]], sd = normalMixFit[["sigma"]][[1]], log = TRUE)
     
-    genePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
-                                                     log_alt_guide_probs = log_alt_guide_probs,
-                                                     log_null_guide_probs = log_null_guide_probs,
-                                                     lowerLim = normalMixFit[["lambda"]][[2]], 
-                                                     upperLim = 1, nMesh = 100)
+      genePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
+                                                       log_alt_guide_probs = log_alt_guide_probs,
+                                                       log_null_guide_probs = log_null_guide_probs,
+                                                       lowerLim = normalMixFit[["lambda"]][[2]], 
+                                                       upperLim = 1, nMesh = 100)
     
-    mixFit = list(genes = unique(geneIds), 
-                  locfdr = sapply(1 - genePosteriors, function(y) max(0, y)), # sometimes returns -1e-16
-                  geneScores = genePosteriors,
-                  mixFit = normalMixFit)
+      mixFit = list(genes = unique(geneIds), 
+                    locfdr = sapply(1 - genePosteriors, function(y) max(0, y)), # sometimes returns -1e-16
+                    geneScores = genePosteriors,
+                    mixFit = normalMixFit)
+    }
   }
   return(mixFit)
 }
