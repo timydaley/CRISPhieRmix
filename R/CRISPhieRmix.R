@@ -272,7 +272,7 @@ fitNegCtrl <- function(neg.ctrl, VERBOSE = FALSE){
               log_norm_factor = log(N) + log(d)))
 }
 
-setBimodalParams <- function(mu = 4, sigma = 1, pq = 0.01){
+setBimodalParams <- function(mu = 4, sigma = 1, pq = 0.05){
   if(length(mu) == 1){
     muPos = abs(mu)
     muNeg = -abs(mu)
