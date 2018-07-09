@@ -438,7 +438,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       if(VERBOSE){
         cat("3 groups \n")
       }
-      params = setBimodalParams(mu, sigma, pq)
+      params = setBimodalParams(mu = mu, sigma = sigma, pq = pq)
       normalMixFit = mixtools::normalmixEM(x, k = 3, mu = c(0, params$muPos, params$muNeg),
                                            sigma = c(1, params$sigmaPos, params$sigmaNeg),
                                            mean.constr = c(0, "a", "-b"))
