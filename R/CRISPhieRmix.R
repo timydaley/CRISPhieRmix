@@ -272,7 +272,9 @@ fitNegCtrl <- function(neg.ctrl, VERBOSE = FALSE){
               log_norm_factor = log(N) + log(d)))
 }
 
-setBimodalParams <- function(mu, sigma, pq){
+setBimodalParams <- function(mu = -4, 
+                             sigma = 1, 
+                             pq = 0.1){
   if(length(mu) == 1){
     muPos = abs(mu)
     muNeg = -abs(mu)
@@ -282,6 +284,7 @@ setBimodalParams <- function(mu, sigma, pq){
     muNeg = min(mu)
     stopifnot(muNeg < 0)
   }
+  cat("mu set \n")
   if(length(sigma) == 1){
     sigmaPos = sigma
     sigmaNeg = sigma
@@ -289,6 +292,7 @@ setBimodalParams <- function(mu, sigma, pq){
     sigmaPos = sigma[which.max(mu)]
     sigmaNeg = sigma[which.min(mu)]
   }
+  cat("sigma set \n")
   if(length(pq) == 1){
     pqPos = pq/2
     pqNeg = pq/2
@@ -296,6 +300,7 @@ setBimodalParams <- function(mu, sigma, pq){
     pqPos = pq[which.max(mu)]
     pqNeg = pq[which.min(mu)]
   }
+  cat("pq set \n")
   return(list(pqPos = pqPos,
               pqNeg = pqNeg,
               muPos = muPos,
