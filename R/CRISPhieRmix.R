@@ -138,9 +138,9 @@ skewt2compLogLike <- function(x, pq, skewtFit, mu, sigma){
 skewt3compLogLike <- function(x, skewtFit, 
                               pqPos, pqNeg,
                               muPos, muNeg, 
-                              sigma){
-  log_pos_prob = log(pqPos) + dnorm(x, mean = muPos, sd = sigma, log = TRUE)
-  log_neg_prob = log(pqNeg) + dnorm(x, mean = muNeg, sd = sigma, log = TRUE)
+                              sigmaPos, sigmaNeg){
+  log_pos_prob = log(pqPos) + dnorm(x, mean = muPos, sd = sigmaPos, log = TRUE)
+  log_neg_prob = log(pqNeg) + dnorm(x, mean = muNeg, sd = sigmaNeg, log = TRUE)
   log_null_prob = log(1 - pqPos - pqNeg) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
   
   return(sum(apply(cbind(log_pos_prob, log_neg_prob, log_null_prob), 1, logSumLogVec)))
@@ -195,7 +195,7 @@ skewtEM3comp <- function(x, skewtFit = NULL,
                          max_iter = 1000, tol = 1e-10,
                          pqPos = 0.05, pqNeg = 0.05,
                          muPos = 5, muNeg = -5,
-                         sigma = 1,
+                         sigmaPos = 1, sigmaNeg = 1,
                          VERBOSE = FALSE){
   n_obs = length(x)
   providedFit = !is.null(skewtFit)
@@ -358,11 +358,15 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         cat("3 groups \n")
       }
       params = setBimodalParams(mu, sigma, pq)
+      if(VERBOSE){
+        cat("mu0 = " params$muPos, ", " params$muNeg, "\n")
+        cat("sigma0 = " params$sigmaPos, ", " params$sigmaNeg, "\n")
+      }
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
                               pqPos = params$pqPos, pqNeg = params$pqNeg, 
                               muPos = params$muPos, muNeg = params$muNeg, 
                               sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
-                              VERBOSE = FALSE)
+                              VERBOSE = VERBOSE)
       
       if(PLOT){
        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
