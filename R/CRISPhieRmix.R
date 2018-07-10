@@ -359,8 +359,8 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       }
       params = setBimodalParams(mu, sigma, pq)
       if(VERBOSE){
-        cat("mu0 = " params$muPos, ", " params$muNeg, "\n")
-        cat("sigma0 = " params$sigmaPos, ", " params$sigmaNeg, "\n")
+        cat("mu0 = ", params$muPos, ", ", params$muNeg, "\n")
+        cat("sigma0 = ", params$sigmaPos, ", ", params$sigmaNeg, "\n")
       }
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
                               pqPos = params$pqPos, pqNeg = params$pqNeg, 
