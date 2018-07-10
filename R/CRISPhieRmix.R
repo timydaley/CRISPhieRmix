@@ -371,8 +371,8 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                 (1 - skewtMix$pqPos - skewtMix$pqNeg)*sn::dst(b, dp = negCtrlFit$dp), col = "darkviolet", lty = 2, lwd = 2)
       }
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
-      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigmaPos, log = TRUE)
-      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigmaNeg, log = TRUE)
+      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigma, log = TRUE)
+      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigma, log = TRUE)
       posGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
                                                           log_alt_guide_probs = log_pos_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
