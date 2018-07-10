@@ -284,7 +284,6 @@ setBimodalParams <- function(mu = -4,
     muNeg = min(mu)
     stopifnot(muNeg < 0)
   }
-  cat("mu set \n")
   if(length(sigma) == 1){
     sigmaPos = sigma
     sigmaNeg = sigma
@@ -292,7 +291,6 @@ setBimodalParams <- function(mu = -4,
     sigmaPos = sigma[which.max(mu)]
     sigmaNeg = sigma[which.min(mu)]
   }
-  cat("sigma set \n")
   if(length(pq) == 1){
     pqPos = pq/2
     pqNeg = pq/2
@@ -300,7 +298,6 @@ setBimodalParams <- function(mu = -4,
     pqPos = pq[which.max(mu)]
     pqNeg = pq[which.min(mu)]
   }
-  cat("pq set \n")
   return(list(pqPos = pqPos,
               pqNeg = pqNeg,
               muPos = muPos,
@@ -443,7 +440,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         cat("sigma = ", sigma, "\n")
         cat("pq = ", pq, "\n")
       }
-      params = setBimodalParams(mu, sigma, pq)
+      params = setBimodalParams(mu = mu, sigma = sigma, pq = pq)
       
       normalMixFit = mixtools::normalmixEM(x, k = 3, mu = c(0, params$muPos, params$muNeg),
                                            sigma = c(1, params$sigmaPos, params$sigmaNeg),
