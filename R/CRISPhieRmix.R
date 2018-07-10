@@ -241,7 +241,8 @@ skewtEM3comp <- function(x, skewtFit = NULL,
           "pqNeg = ", pqNeg, "\n", 
           "muPos = ", muPos, "\n",
           "muNeg = ", muNeg, "\n",
-          "sigma = ", sigma, "\n")
+          "sigmaPos = ", sigmaPos, "\n",
+          "sigmaNeg = ", sigmaNeg, "\n")
     }
     if(VERBOSE & (iter %% 50 == 0)){
       cat("iter: ", iter, "\n")
