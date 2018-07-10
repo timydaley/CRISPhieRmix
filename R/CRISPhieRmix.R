@@ -91,9 +91,9 @@ skewtMixExpectationStep2comp <- function(x, skewtFit, mu, sigma, pq){
 skewtMixExpectationStep3comp <- function(x, skewtFit, 
                                          pqPos, pqNeg,
                                          muPos, muNeg, 
-                                         sigma){
-  log_pos_prob = log(pqPos) + dnorm(x, mean = muPos, sd = sigma, log = TRUE)
-  log_neg_prob = log(pqNeg) + dnorm(x, mean = muNeg, sd = sigma, log = TRUE)
+                                         sigmaPos, sigmaNeg){
+  log_pos_prob = log(pqPos) + dnorm(x, mean = muPos, sd = sigmaPos, log = TRUE)
+  log_neg_prob = log(pqNeg) + dnorm(x, mean = muNeg, sd = sigmaNeg, log = TRUE)
   log_null_prob = log(1 - pqPos - pqNeg) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
   
   log_denom = apply(cbind(log_pos_prob, log_neg_prob, log_null_prob), 1, logSumLogVec)
@@ -116,7 +116,8 @@ skewtMixMaxStep3comp <- function(x, posProbs, negProbs, skewtFit = NULL){
   pqNeg = mean(negProbs)
   muPos = mean(posProbs*x)/pqPos
   muNeg = mean(negProbs*x)/pqNeg
-  sigma = sqrt(mean(posProbs*(x - muPos)^2 + negProbs*(x - muNeg)^2)/(pqPos + pqNeg))
+  sigmaPos = sqrt(mean(posProbs*(x - muPos)^2 )/pqPos)
+  sigmaNeg = sqrt(mean(negProbs*(x - muNeg)^2)/pqNeg)
   
   if(is.null(skewtFit)){
     cat("refitting skewtFit \n")
@@ -124,7 +125,7 @@ skewtMixMaxStep3comp <- function(x, posProbs, negProbs, skewtFit = NULL){
   }
   return(list(pqPos = pqPos, pqNeg = pqNeg,
               muPos = muPos, muNeg = muNeg,
-              sigma = sigma,
+              sigmaPos = sigmaPos, sigmaNeg = sigmaNeg,
               skewtFit = skewtFit))
 }
 
@@ -200,10 +201,10 @@ skewtEM3comp <- function(x, skewtFit = NULL,
   providedFit = !is.null(skewtFit)
   prevloglike = -1e100;
   loglike = skewt3compLogLike(x, skewtFit, pqPos, pqNeg,
-                              muPos, muNeg, sigma)
+                              muPos, muNeg, sigmaPos, sigmaNeg)
   iter = 0;
   initial_expectations = skewtMixExpectationStep3comp(x, skewtFit, pqPos, pqNeg,
-                                                      muPos, muNeg, sigma)
+                                                      muPos, muNeg, sigmaPos, sigmaNeg)
   posProbs = initial_expectations$posProbs
   negProbs = initial_expectations$negProbs
   
@@ -220,16 +221,17 @@ skewtEM3comp <- function(x, skewtFit = NULL,
     pqNeg = updated_params$pqNeg
     muPos = updated_params$muPos
     muNeg = updated_params$muNeg
-    sigma = updated_params$sigma
+    sigmaPos = updated_params$sigmaPos
+    sigmaNeg = updated_params$sigmaNeg
     skewtFit = updated_params$skewtFit
     # expectation step
     updated_expectations = skewtMixExpectationStep3comp(x, skewtFit, pqPos, pqNeg,
-                                                        muPos, muNeg, sigma)
+                                                        muPos, muNeg, sigmaPos, sigmaNeg)
     posProbs = updated_expectations$posProbs
     negProbs = updated_expectations$negProbs
     
     loglike = skewt3compLogLike(x, skewtFit, pqPos, pqNeg,
-                                muPos, muNeg, sigma)
+                                muPos, muNeg, sigmaPos, sigmaNeg)
     iter = iter + 1
     if(VERBOSE){
       cat("iter = ", iter, "\n",
@@ -256,7 +258,7 @@ skewtEM3comp <- function(x, skewtFit = NULL,
               skewtFit = skewtFit,
               pqPos = pqPos, pqNeg = pqNeg,
               muPos = muPos, muNeg = muNeg, 
-              sigma = sigma))
+              sigmaPos = sigmaPos, sigmaNeg = sigmaNeg))
 }
 
 
@@ -358,21 +360,22 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       params = setBimodalParams(mu, sigma, pq)
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
                               pqPos = params$pqPos, pqNeg = params$pqNeg, 
-                              muPos = params$muPos, muNeg = params$muNeg, sigma = sigma,
+                              muPos = params$muPos, muNeg = params$muNeg, 
+                              sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
                               VERBOSE = FALSE)
       
       if(PLOT){
        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
-        lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigma) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigma), 
+        lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg), 
               lwd = 2, col = "darkgreen")
         lines(b, (1 - skewtMix$pqPos - skewtMix$pqNeg)*sn::dst(b, dp = negCtrlFit$dp), col = "red", lwd  = 2)
-        lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigma) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigma) +
+        lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg) +
                 (1 - skewtMix$pqPos - skewtMix$pqNeg)*sn::dst(b, dp = negCtrlFit$dp), col = "darkviolet", lty = 2, lwd = 2)
       }
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
-      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigma, log = TRUE)
-      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigma, log = TRUE)
+      log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigmaPos, log = TRUE)
+      log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigmaNeg, log = TRUE)
       posGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds, 
                                                           log_alt_guide_probs = log_pos_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
