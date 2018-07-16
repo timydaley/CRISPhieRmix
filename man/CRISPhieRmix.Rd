@@ -6,7 +6,7 @@
 \title{CRISPhieRmix}
 \usage{
 CRISPhieRmix(x, geneIds, negCtrl = NULL, max_iter = 100, tol = 1e-10,
-  pq = 0.1, mu = -4, sigma = 1, nMesh = 10, BIMODAL = FALSE,
+  pq = 0.1, mu = -4, sigma = 1, nMesh = 100, BIMODAL = FALSE,
   VERBOSE = FALSE, PLOT = FALSE)
 }
 \arguments{
