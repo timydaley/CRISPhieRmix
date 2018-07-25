@@ -348,7 +348,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
   if(!is.null(negCtrl)){
     negCtrlFit = sn::st.mple(y = negCtrl)
     if(PLOT){
-      s = seq(from = min(x), to = max(x), by = 0.1)
+      s = seq(from = min(x), to = max(x), length = 1001)
       hist(negCtrl, breaks = 80, probability = TRUE, xlim = c(min(x), max(x)), main = "negative control fit")
       lines(s, sn::dst(s, dp = negCtrlFit$dp), col = "red", lwd  = 2, lty = 2)
     }
