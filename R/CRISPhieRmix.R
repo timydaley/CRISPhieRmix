@@ -371,7 +371,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                               VERBOSE = VERBOSE)
       
       if(PLOT){
-       b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
+       b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 1001)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
         lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg), 
               lwd = 2, col = "darkgreen")
@@ -394,10 +394,12 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           lowerLim = skewtMix$pqNeg, 
                                                           upperLim = 1 - skewtMix$pqPos, 
                                                           nMesh = nMesh)
+      locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
       mixFit = list(genes = unique(geneIds),
-                    locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y)),
+                    locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
                     negGenePosteriors = negGenePosteriors,
+                    FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
                     mixFit = skewtMix)
     
     } else{
@@ -414,7 +416,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         cat("pq = ", skewtMix$pq, "\n")
       }
       if(PLOT){
-        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 81)
+        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 1001)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
         lines(b, skewtMix$pq*dnorm(b, skewtMix$mu, skewtMix$sigma), 
               lwd = 2, col = "darkgreen")
@@ -430,9 +432,11 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                        log_null_guide_probs = log_null_guide_probs,
                                                        lowerLim = skewtMix$pq, upperLim = 1, 
                                                        nMesh = nMesh)  
+      locfdr = sapply(1 - genePosteriors, function(y) max(0, y)) # sometimes returns -1e-16
       mixFit = list(genes = unique(geneIds),
-                    locfdr = sapply(1 - genePosteriors, function(y) max(0, y)), # sometimes returns -1e-16
+                    locfdr = locfdr,
                     genePosteriors = genePosteriors,
+                    FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
                     mixFit = skewtMix)
     }
   }
@@ -473,10 +477,12 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           lowerLim = normalMixFit$lambda[3], 
                                                           upperLim = 1 - normalMixFit$lambda[3], 
                                                           nMesh = nMesh)
+      locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
       mixFit = list(genes = unique(geneIds),
-                    locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y)),
+                    locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
                     negGenePosteriors = negGenePosteriors,
+                    FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
                     mixFit = normalMixFit)
       
     }
@@ -494,10 +500,13 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                        log_null_guide_probs = log_null_guide_probs,
                                                        lowerLim = normalMixFit[["lambda"]][[2]], 
                                                        upperLim = 1, nMesh = 100)
+      
+      locfdr = sapply(1 - genePosteriors, function(y) max(0, y)) # sometimes returns -1e-16
     
       mixFit = list(genes = unique(geneIds), 
-                    locfdr = sapply(1 - genePosteriors, function(y) max(0, y)), # sometimes returns -1e-16
+                    locfdr = locfdr,
                     geneScores = genePosteriors,
+                    FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
                     mixFit = normalMixFit)
     }
   }
