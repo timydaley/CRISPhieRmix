@@ -1,0 +1,46 @@
+---
+title: Using CRISPhieRmix with precomputed scores to identify essential genes in a
+  CRISPRi screen
+author: "Timothy Daley"
+output: html_document
+---
+
+[Gilbert et al. 2014](https://www.sciencedirect.com/science/article/pii/S0092867414011787) performed genome wide screens for ricin resistance and susceptibility.  In table 2, sheet 1 the authors provide the results of the CRISPRi screen at the sgRNA level.  This includes the growth phenotype gamma and the ricin phenotype rho.  They were interested in the ricin phenotype, but we will look at the growth phenotype to identify genes that lead to decreased growth and can thus be considered essential.  In the CRISPhieRmix paper we used log2 fold changes computed by DESeq2 for a fairer comparison of algorithms (since other algorithms such as MAGeCK work directly on the counts), but here we will use the scores computed by Gilbert et al to show the flexibility of the CRISPhieRmix approach.
+
+```{r}
+Gilbert2014Table2CRISPRi = read.table(file = "Gilbert2014Table2CRISPRi.txt", sep = "\t", header = TRUE)
+head(Gilbert2014Table2CRISPRi)
+# identify the negative control guides
+head(sort(table(Gilbert2014Table2CRISPRi$gene), decreasing = TRUE))
+gamma = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
+negCtrl = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene == "negative_control")]
+geneIds = Gilbert2014Table2CRISPRi$gene[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
+# need to remove the negative_control factor
+geneIds = factor(geneIds, levels = unique(geneIds))
+x = data.frame(gamma = c(gamma, negCtrl), category = c(rep("gene targeting", times = length(gamma)), rep("negative control", times = length(negCtrl))))
+x$category = factor(x$category, levels = c("negative control", "gene targeting"))
+library(ggplot2)
+ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+```
+
+We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We'll use CRISPhieRmix to identify them.
+
+```{r}
+library(CRISPhieRmix)
+gamma.CRISPhieRmix = CRISPhieRmix(x = gamma, geneIds = geneIds, negCtrl = negCtrl, mu = -0.2, sigma = 0.1, VERBOSE = TRUE, PLOT = TRUE)
+hist(gamma.CRISPhieRmix$FDR, breaks = 100)
+sum(gamma.CRISPhieRmix$FDR < 0.1)
+```
+
+Let's look at how much these genes overlap the gold standard list of core constitutive genes and non-essential genes of [Hart et al. 2014](http://msb.embopress.org/content/10/7/733).  
+
+```{r}
+ConstitutiveCoreEssentialGenes = scan("ConstitutiveCoreEssentialGenes.txt", what = character())
+length(ConstitutiveCoreEssentialGenes)
+length(intersect(ConstitutiveCoreEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
+NonEssentialGenes = scan("NonEssentialGenes.txt", what = character())
+length(NonEssentialGenes)
+length(intersect(NonEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
+```
+
+From this we can estimate the empirical false discovery rate at FDR level as $3/1373 \approx 0.002$ and empirical true positive rate as $170/217 \approx 0.78$.
