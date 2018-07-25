@@ -42,6 +42,8 @@ NumericVector integratedExpectation(NumericVector geneIds,
   assert(q.size() == p.size());
   assert(q.size() == weights.size());
   int nGenes = max(geneIds);
+  Rcerr << "nGenes = " << nGenes << std::endl;
+  
   
   NumericVector genePosteriors(nGenes);
   for(size_t i = 0; i < q.size(); i++){
