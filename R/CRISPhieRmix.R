@@ -348,7 +348,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
   if(!is.null(negCtrl)){
     negCtrlFit = sn::st.mple(y = negCtrl)
     if(PLOT){
-      s = seq(from = min(x), to = max(x), length = 1001)
+      s = seq(from = min(x), to = max(x), length = 101)
       hist(negCtrl, breaks = 80, probability = TRUE, xlim = c(min(x), max(x)), main = "negative control fit")
       lines(s, sn::dst(s, dp = negCtrlFit$dp), col = "red", lwd  = 2, lty = 2)
     }
@@ -371,7 +371,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                               VERBOSE = VERBOSE)
       
       if(PLOT){
-       b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 1001)
+       b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 101)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
         lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg), 
               lwd = 2, col = "darkgreen")
@@ -416,7 +416,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         cat("pq = ", skewtMix$pq, "\n")
       }
       if(PLOT){
-        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 1001)
+        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 101)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
         lines(b, skewtMix$pq*dnorm(b, skewtMix$mu, skewtMix$sigma), 
               lwd = 2, col = "darkgreen")
