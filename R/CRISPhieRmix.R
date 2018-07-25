@@ -78,6 +78,7 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
   }
   cat("\n")
   cat("length of geneIds = ", length(geneIds), "\n")
+  cat("range of as.numeric(geneIds) = ", range(as.numeric(geneIds)), "\n")
   
   return(integratedExpectation(as.numeric(geneIds), log_alt_guide_probs, 
                                log_null_guide_probs, quad.points.weights$nodes, 
