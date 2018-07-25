@@ -46,6 +46,16 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
                                             nMesh = 100){
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   nGenes = length(unique(geneIds))
+ 
+  #EZ_g.mat = vapply(1:nMesh,
+  #                  function(i) quad.points.weights$weights[i]*geneExpectations2Group(x, geneIds,
+  #                                                                                    q = quad.points.weights$nodes[i],
+  #                                                                                    p = lowerLim/quad.points.weights$nodes[i],
+  #                                                                                    log_alt_guide_probs = log_alt_guide_probs,
+  #                                                                                    log_null_guide_probs = log_null_guide_probs),
+  #                  FUN.VALUE = double(nGenes))
+  #EZ_g.mat = t(EZ_g.mat)
+  #return(apply(EZ_g.mat, 2, sum))
   cat("length of log_alt_guide_probs = ", length(log_alt_guide_probs), "\n")
   cat("length of log_null_guide_probs = ", length(log_null_guide_probs), "\n")
   cat("nGenes = ", nGenes, "\n")
@@ -62,16 +72,12 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
     cat(quad.points.weights$weights[i], ", ")
   }
   cat("\n")
+  cat("q = ")
+  for(i in 1:length(lowerLim/quad.points.weights$nodes)){
+    cat(lowerLim/quad.points.weights$nodes[i], ", ")
+  }
+  cat("\n")
   
-  #EZ_g.mat = vapply(1:nMesh,
-  #                  function(i) quad.points.weights$weights[i]*geneExpectations2Group(x, geneIds,
-  #                                                                                    q = quad.points.weights$nodes[i],
-  #                                                                                    p = lowerLim/quad.points.weights$nodes[i],
-  #                                                                                    log_alt_guide_probs = log_alt_guide_probs,
-  #                                                                                    log_null_guide_probs = log_null_guide_probs),
-  #                  FUN.VALUE = double(nGenes))
-  #EZ_g.mat = t(EZ_g.mat)
-  #return(apply(EZ_g.mat, 2, sum))
   return(integratedExpectation(geneIds, log_alt_guide_probs, 
                                log_null_guide_probs, quad.points.weights$nodes, 
                                lowerLim/quad.points.weights$nodes, 
