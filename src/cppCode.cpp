@@ -32,18 +32,10 @@ NumericVector integratedExpectation(NumericVector geneIds,
                                     NumericVector q,
                                     NumericVector p,
                                     NumericVector weights){
-  Rcerr << "length of geneIds = " << geneIds.size() << std::endl;
-  Rcerr << "length of log_alt_guide_probs = " << log_alt_guide_probs.size() << std::endl;
-  Rcerr << "length of log_null_guide_probs = " << log_null_guide_probs.size() << std::endl;
-  Rcerr << "length of q = " << q.size() << std::endl;
-  Rcerr << "length of p = " << p.size() << std::endl;
-  Rcerr << "length of weights = " << weights.size() << std::endl;
   
   assert(q.size() == p.size());
   assert(q.size() == weights.size());
-  int nGenes = max(geneIds);
-  Rcerr << "nGenes = " << nGenes << std::endl;
-  
+  int nGenes = max(geneIds);  
   
   NumericVector genePosteriors(nGenes);
   for(size_t i = 0; i < q.size(); i++){

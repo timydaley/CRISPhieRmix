@@ -56,29 +56,6 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
   #                  FUN.VALUE = double(nGenes))
   #EZ_g.mat = t(EZ_g.mat)
   #return(apply(EZ_g.mat, 2, sum))
-  cat("length of log_alt_guide_probs = ", length(log_alt_guide_probs), "\n")
-  cat("length of log_null_guide_probs = ", length(log_null_guide_probs), "\n")
-  cat("nGenes = ", nGenes, "\n")
-  cat("lowerLim = ", lowerLim, "\n")
-  cat("upperLim = ", upperLim, "\n")
-  cat("nMesh = ", nMesh, "\n")
-  cat("quad points = ")
-  for(i in 1:length(quad.points.weights$nodes)){
-    cat(quad.points.weights$nodes[i], ", ")
-  }
-  cat("\n")
-  cat("quad weights = ")
-  for(i in 1:length(quad.points.weights$weights)){
-    cat(quad.points.weights$weights[i], ", ")
-  }
-  cat("\n")
-  cat("q = ")
-  for(i in 1:length(lowerLim/quad.points.weights$nodes)){
-    cat(lowerLim/quad.points.weights$nodes[i], ", ")
-  }
-  cat("\n")
-  cat("length of geneIds = ", length(geneIds), "\n")
-  cat("range of as.numeric(geneIds) = ", range(as.numeric(geneIds)), "\n")
   
   return(integratedExpectation(as.numeric(geneIds), log_alt_guide_probs, 
                                log_null_guide_probs, quad.points.weights$nodes, 
