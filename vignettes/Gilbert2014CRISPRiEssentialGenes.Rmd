@@ -23,7 +23,9 @@ library(ggplot2)
 ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 ```
 
-We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We'll use CRISPhieRmix to identify them.
+We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We'll use CRISPhieRmix to identify them.  
+
+If the central peaks don't align, then the assumption that the negative control guides reflect the distribution of guides targeting null genes will be violated.  In this case, negative control guides should not be used.
 
 ```{r}
 library(CRISPhieRmix)
