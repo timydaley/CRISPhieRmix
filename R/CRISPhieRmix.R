@@ -44,9 +44,25 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
                                             log_null_guide_probs,
                                             lowerLim = 0.1, upperLim = 1, 
                                             nMesh = 100){
-
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   nGenes = length(unique(geneIds))
+  cat("length of log_alt_guide_probs = ", length(log_alt_guide_probs), "\n")
+  cat("length of log_null_guide_probs = ", length(log_null_guide_probs), "\n")
+  cat("nGenes = ", nGenes, "\n")
+  cat("lowerLim = ", lowerLim, "\n")
+  cat("upperLim = ", upperLim, "\n")
+  cat("nMesh = ", nMesh, "\n")
+  cat("quad points = ")
+  for(i in 1:length(quad.points.weights$nodes)){
+    cat(quad.points.weights$nodes[i], ", ")
+  }
+  cat("\n")
+  cat("quad weights = ")
+  for(i in 1:length(quad.points.weights$weights)){
+    cat(quad.points.weights$weights[i], ", ")
+  }
+  cat("\n")
+  
   #EZ_g.mat = vapply(1:nMesh,
   #                  function(i) quad.points.weights$weights[i]*geneExpectations2Group(x, geneIds,
   #                                                                                    q = quad.points.weights$nodes[i],
