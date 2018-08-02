@@ -19,6 +19,8 @@ CRISPhieRmix is an R package for analysing large CRISPR interference and activat
 
 CRISPhieRmix can be used with out without negative control guides.  We find that negative control guides help to better model the null distribution, as in our experience the null distribution tends to have long tails, and this helps to control the false discovery rate.  A critical assumption is that the negative control guides accurcately reflect the null distribution.  This assumption can be violated in some screens, and we will discuss this later in depth.
 
+If you have any issues with software, please create an issue in the github page https://github.com/timydaley/CRISPhieRmix.  If you have any questions, please email me at tdaley@stanford.edu.
+
 
 
 \newpage
@@ -58,37 +60,44 @@ CRISPhieRmix can be used with out without negative control guides.  We find that
 [Gilbert et al. 2014](https://www.sciencedirect.com/science/article/pii/S0092867414011787) performed genome wide screens for ricin resistance and susceptibility.  In table 2, sheet 1 the authors provide the results of the CRISPRi screen at the sgRNA level.  This includes the growth phenotype gamma and the ricin phenotype rho.  They were interested in the ricin phenotype, but we will look at the growth phenotype to identify genes that lead to decreased growth and can thus be considered essential.  In the CRISPhieRmix paper we used log2 fold changes computed by DESeq2 for a fairer comparison of algorithms (since other algorithms such as MAGeCK work directly on the counts), but here we will use the scores computed by Gilbert et al to show the flexibility of the CRISPhieRmix approach.
 
 ```{r}
-Gilbert2014Table2CRISPRi = read.table(file = "Gilbert2014Table2CRISPRi.txt", sep = "\t", header = TRUE)
+Gilbert2014Table2CRISPRi = read.table(file = "Gilbert2014Table2CRISPRi.txt", sep = "\t", 
+                                      header = TRUE)
 head(Gilbert2014Table2CRISPRi)
 # identify the negative control guides
 head(sort(table(Gilbert2014Table2CRISPRi$gene), decreasing = TRUE))
-gamma = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
-negCtrl = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene == "negative_control")]
-geneIds = Gilbert2014Table2CRISPRi$gene[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
+geneTargetingGuides = which(Gilbert2014Table2CRISPRi$gene != "negative_control")
+negCtrlGuides = which(Gilbert2014Table2CRISPRi$gene == "negative_control")
+gamma = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[geneTargetingGuides]
+negCtrl = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[negCtrlGuides]
+geneIds = Gilbert2014Table2CRISPRi$gene[geneTargetingGuides]
 # need to remove the negative_control factor
 geneIds = factor(geneIds, levels = unique(geneIds))
-x = data.frame(gamma = c(gamma, negCtrl), category = c(rep("gene targeting", times = length(gamma)), rep("negative control", times = length(negCtrl))))
+x = data.frame(gamma = c(gamma, negCtrl), 
+               category = c(rep("gene targeting", times = length(gamma)), 
+                            rep("negative control", times = length(negCtrl))))
 x$category = factor(x$category, levels = c("negative control", "gene targeting"))
 library(ggplot2)
-ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
 ```
 
 We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We can now apply CRISPhieRmix to this data to identify genes that led to decreased growth or cell death.
 
 ```{r}
 library(CRISPhieRmix)
-gamma.CRISPhieRmix = CRISPhieRmix(x = gamma, geneIds = geneIds, negCtrl = negCtrl, mu = -0.2, sigma = 0.1, VERBOSE = TRUE, PLOT = TRUE)
+gamma.CRISPhieRmix = CRISPhieRmix(x = gamma, geneIds = geneIds, negCtrl = negCtrl, 
+                                  mu = -0.2, sigma = 0.1, VERBOSE = TRUE, PLOT = TRUE)
 hist(gamma.CRISPhieRmix$FDR, breaks = 100)
 sum(gamma.CRISPhieRmix$FDR < 0.1)
 ```
 
-
-Let's look at how much these genes overlap the gold standard list of core constitutive genes and non-essential genes of [Hart et al. 2014](http://msb.embopress.org/content/10/7/733).  
+The peak near zero indicates the genes that are likely to be essential.  Let's look at how much these genes overlap the gold standard list of core constitutive genes and non-essential genes of [Hart et al. 2014](http://msb.embopress.org/content/10/7/733).  
 
 ```{r}
 ConstitutiveCoreEssentialGenes = scan("ConstitutiveCoreEssentialGenes.txt", what = character())
 length(ConstitutiveCoreEssentialGenes)
-length(intersect(ConstitutiveCoreEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
+length(intersect(ConstitutiveCoreEssentialGenes, 
+                 gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
 NonEssentialGenes = scan("NonEssentialGenes.txt", what = character())
 length(NonEssentialGenes)
 length(intersect(NonEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
@@ -97,7 +106,10 @@ length(intersect(NonEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhi
 From this we can estimate the empirical false discovery rate at FDR level $0.1$ as $3/1373 \approx 0.002$ and an empirical true positive rate as $170/217 \approx 0.78$.  The empirical vs estimated FDR curve is plotted below.
 
 ```{r}
-EssentialGenes = data.frame(gene = factor(c(sapply(ConstitutiveCoreEssentialGenes, toString), sapply(NonEssentialGenes, toString))), essential = c(rep(1, times = length(ConstitutiveCoreEssentialGenes)), rep(0, times = length(NonEssentialGenes))))
+EssentialGenes = data.frame(gene = factor(c(sapply(ConstitutiveCoreEssentialGenes, toString),
+                                            sapply(NonEssentialGenes, toString))), 
+                            essential = c(rep(1, times = length(ConstitutiveCoreEssentialGenes)), 
+                                          rep(0, times = length(NonEssentialGenes))))
 EssentialGenes = EssentialGenes[which(EssentialGenes$gene %in% gamma.CRISPhieRmix$genes), ]
 gamma.CRISPhieRmixEssential = data.frame(genes = gamma.CRISPhieRmix$genes, FDR = gamma.CRISPhieRmix$FDR)
 gamma.CRISPhieRmixEssential = gamma.CRISPhieRmixEssential[which(gamma.CRISPhieRmixEssential$genes %in% EssentialGenes$gene), ]
@@ -112,15 +124,57 @@ fdr.curve <- function(thresh, fdrs, baseline){
   }
 }
 s = seq(from = 0, to = 1, length = 1001)
-gamma.CRISPhieRmixFdrCurve = sapply(s, function(t) fdr.curve(t, gamma.CRISPhieRmixEssential$FDR, EssentialGenes$essential))
-plot(c(0, s[!is.na(gamma.CRISPhieRmixFdrCurve)]), c(0, gamma.CRISPhieRmixFdrCurve[!is.na(gamma.CRISPhieRmixFdrCurve)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "Estimated vs Empirical Fdr", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deepskyblue")
+gamma.CRISPhieRmixFdrCurve = sapply(s, function(t) fdr.curve(t, gamma.CRISPhieRmixEssential$FDR,
+                                                             EssentialGenes$essential))
+plot(c(0, s[!is.na(gamma.CRISPhieRmixFdrCurve)]), c(0, gamma.CRISPhieRmixFdrCurve[!is.na(gamma.CRISPhieRmixFdrCurve)]), type = "l", xlab = "estimated FDR", 
+     ylab = "empirical FDR", main = "Estimated vs Empirical Fdr", xlim = c(0, 1), ylim = c(0, 1),
+     lwd = 2, col = "deepskyblue")
 abline(0, 1)
 ```
 
 The receiver operator curve based on the above annotated genes is given below.
 
 ```{r}
-gamma.CRISPhieRmixROC = pROC::roc(EssentialGenes$essential, gamma.CRISPhieRmixEssential$FDR, auc = TRUE)
+gamma.CRISPhieRmixROC = pROC::roc(EssentialGenes$essential, 
+                                  gamma.CRISPhieRmixEssential$FDR, auc = TRUE)
 gamma.CRISPhieRmixROC
-plot(gamma.CRISPhieRmixROC, col = "deepskyblue", lwd = 2)
+plot(gamma.CRISPhieRmixROC, col = "deepskyblue", lwd = 2, xlim = c(0, 1), ylim = c(0, 1), main = "ROC")
 ```
+
+\newpage
+
+## Checking the negative control distribution
+
+The data shown here is taken from [Wang et al, 2015](http://science.sciencemag.org/content/350/6264/1096.full).  The authors performed a genome-wide screen for essential genes.  
+
+```{r}
+Wang2015counts = read.table(file = "aac7041_SM_Table_S2.txt", sep = "\t", header = TRUE)
+Wang2015counts = Wang2015counts[-which(rowSums(Wang2015counts[ ,-c(1)]) == 0), ]
+which.negCtrl = which(startsWith(sapply(Wang2015counts$sgRNA, toString), "CTRL"))
+geneIds = sapply(Wang2015counts$sgRNA[-which.negCtrl], 
+                 function(g) unlist(strsplit(toString(g), split = "_"))[1])
+geneIds = sapply(geneIds, function(g) substring(g, first = 3))
+geneIds = factor(geneIds, levels = unique(geneIds))
+
+counts = Wang2015counts[ , -c(1)]
+colData = data.frame(cellType = sapply(colnames(counts), 
+                                       function(x) unlist(strsplit(toString(x), split = ".", 
+                                                                   fixed = TRUE))[1]), 
+                     condition = factor(rep(c(0, 1), times = 5)))
+rownames(colData) = colnames(counts)
+Wang2015DESeq = DESeq2::DESeqDataSetFromMatrix(countData = counts, 
+                                               colData = colData, design = ~ condition)
+Wang2015DESeq = DESeq2::DESeq(Wang2015DESeq)
+Wang2015DESeq = DESeq2::results(Wang2015DESeq)
+log2fc = Wang2015DESeq$log2FoldChange
+log2fc.negCtrl = log2fc[which.negCtrl]
+log2fc.geneTargeting = log2fc[-which.negCtrl]
+library(ggplot2)
+x = data.frame(log2fc = log2fc, category = c(rep("negative control", 
+                                                 times = length(which.negCtrl)), 
+                                             rep("gene targeting", times = length(log2fc.geneTargeting))))
+ggplot(x, aes(x = log2fc, colour = category)) + geom_density() + theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+As we can see, the distribution of the negative control guides do not line up with the central peak of the gene targeting guides.  This indicates that the distribution of the negative control guides does not reflect the null genes.  In this case, using the negative control guides to estimate the null will likely lead to very incorrect inferences and is not suggested.  It's unclear why the negative control guides do not look like the central peak.  If this is the case in your experiment, it is worth investigating why.
