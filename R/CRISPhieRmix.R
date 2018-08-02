@@ -315,15 +315,16 @@ setBimodalParams <- function(mu = -4,
 #'
 #' a hierarchical mixture model for analysing large-scale CRISPRi/a pooled screen
 #'
-#' @param x log2 fold changes of guides targeting genes
-#' @param geneIds gene ids corresponding to x
+#' @param x log2 fold changes of guides targeting genes (required)
+#' @param geneIds gene ids corresponding to x (required)
 #' @param negCtrl log2 fold changes of negative control guides
 #' @param max_iter maximum number of iterations for EM algorithm, default = 100
 #' @param tol tolerance for convergence of EM algorithm, default = 1e-10
 #' @param pq initial value of p*q, default = 0.1
-#' @param mu initial value of mu for the interesting genes, default = 4
+#' @param mu initial value of mu for the interesting genes, default = -4
 #' @param sigma initial value of sigma for the interesting genes, default = 1
 #' @param nMesh the number of points to use in numerical integration of posterior probabilities, default = 100
+#' @param BIMODAL boolean variable to fit a bimodal alternative distribution for the case when both directions are of interest
 #' @param VERBOSE boolean variable for VERBOSE mode, default = FALSE
 #' @param PLOT boolean variable to produce plots, default = FALSE
 #' @return a list containing genes, the corresponding posterior probabilities of being non-null,

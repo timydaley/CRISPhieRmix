@@ -10,9 +10,9 @@ CRISPhieRmix(x, geneIds, negCtrl = NULL, max_iter = 100, tol = 1e-10,
   VERBOSE = FALSE, PLOT = FALSE)
 }
 \arguments{
-\item{x}{log2 fold changes of guides targeting genes}
+\item{x}{log2 fold changes of guides targeting genes (required)}
 
-\item{geneIds}{gene ids corresponding to x}
+\item{geneIds}{gene ids corresponding to x (required)}
 
 \item{negCtrl}{log2 fold changes of negative control guides}
 
@@ -22,11 +22,13 @@ CRISPhieRmix(x, geneIds, negCtrl = NULL, max_iter = 100, tol = 1e-10,
 
 \item{pq}{initial value of p*q, default = 0.1}
 
-\item{mu}{initial value of mu for the interesting genes, default = 4}
+\item{mu}{initial value of mu for the interesting genes, default = -4}
 
 \item{sigma}{initial value of sigma for the interesting genes, default = 1}
 
 \item{nMesh}{the number of points to use in numerical integration of posterior probabilities, default = 100}
+
+\item{BIMODAL}{boolean variable to fit a bimodal alternative distribution for the case when both directions are of interest}
 
 \item{VERBOSE}{boolean variable for VERBOSE mode, default = FALSE}
 

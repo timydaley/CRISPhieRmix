@@ -3,5 +3,3 @@
 export(CRISPhieRmix)
 import(sn)
 import(statmod)
-useDynLib(CRISPhieRmix)
-importFrom(Rcpp, sourceCpp)

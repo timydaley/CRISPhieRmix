@@ -1,0 +1,126 @@
+---
+title: "CRISPhieRmix Manual"
+author: "Timothy Daley"
+date: "8/2/2018"
+output: 
+  pdf_document:
+      toc: true
+      number_sections: true
+
+---
+
+\tableofcontents
+
+\newpage
+
+# Introduction to CRISPhieRmix
+
+CRISPhieRmix is an R package for analysing large CRISPR interference and activation (CRISPRi/a) screens.  CRISPhieRmix uses a hierarchical mixture model approach to identify genes that are unlikely to follow the null distribution.  CRISPhieRmix assumes that genes follow a mixture of null genes (genes with no effect) and non-null genes (genes with a significant effect).  All guides from null genes follow a common null distribution.  The guides for the non-null genes, on the other hand, are assumed to follow a mixture distribution, where some guides are ineffective (possibly with little or no change in the target gene expression) and follow the null distribution and some guides have an effect and follow an alternative distribution.  
+
+CRISPhieRmix can be used with out without negative control guides.  We find that negative control guides help to better model the null distribution, as in our experience the null distribution tends to have long tails, and this helps to control the false discovery rate.  A critical assumption is that the negative control guides accurcately reflect the null distribution.  This assumption can be violated in some screens, and we will discuss this later in depth.
+
+
+
+\newpage
+
+# Input parameters for CRISPhieRmix
+
+## Input
+
+* **x** log2 fold changes of guides targeting genes (required)
+* **geneIds** gene ids corresponding to x (required)
+* **negCtrl** log2 fold changes of negative control guides; if negCtrl is not included then CRISPhieRmix uses a normal hierachical mixture model
+* **max_iter** maximum number of iterations for EM algorithm, default = 100
+* **tol** tolerance for convergence of EM algorithm, default = 1e-10
+* **pq** initial value of p$\cdot$q, default = 0.1
+* **mu** initial value of mu for the interesting genes, default = -4
+* **sigma** initial value of sigma for the interesting genes, default = 1
+* **nMesh** the number of points to use in numerical integration of posterior probabilities, default = 100
+* **BIMODAL** boolean variable for BIMODAL mode to fit both positive and negative sides, used for cases such as [Jost et al. 2017](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5640507/) where both sides are of interest.
+* **VERBOSE** boolean variable for VERBOSE mode, default = FALSE
+* **PLOT** boolean variable to produce plots, default = FALSE
+
+## Return
+
+* **mixFit** a list containing the mixture fit for **x**
+* **genes** a vector of genes from **geneIds**, in the same order as the following return values
+* **locfdr** a vector of local false discovery rates, the posterior probablity a gene is null in the same order as **genes**
+* **FDR** a vector of global false discovery rates in the same order as **genes**
+* **genePosteriors** a vector of posterior probabilities that the genes are non-null (equal to 1 - **locfdr**), in the same order as **genes**; when **BIMODAL** is set to TRUE then both **negGenePosteriors** and **posGenePosteriors** are returned that give the posterior probability that a gene is negative and positive, respectively
+
+
+\newpage 
+
+# Examples
+
+## A CRISPRi dropout screen
+
+[Gilbert et al. 2014](https://www.sciencedirect.com/science/article/pii/S0092867414011787) performed genome wide screens for ricin resistance and susceptibility.  In table 2, sheet 1 the authors provide the results of the CRISPRi screen at the sgRNA level.  This includes the growth phenotype gamma and the ricin phenotype rho.  They were interested in the ricin phenotype, but we will look at the growth phenotype to identify genes that lead to decreased growth and can thus be considered essential.  In the CRISPhieRmix paper we used log2 fold changes computed by DESeq2 for a fairer comparison of algorithms (since other algorithms such as MAGeCK work directly on the counts), but here we will use the scores computed by Gilbert et al to show the flexibility of the CRISPhieRmix approach.
+
+```{r}
+Gilbert2014Table2CRISPRi = read.table(file = "Gilbert2014Table2CRISPRi.txt", sep = "\t", header = TRUE)
+head(Gilbert2014Table2CRISPRi)
+# identify the negative control guides
+head(sort(table(Gilbert2014Table2CRISPRi$gene), decreasing = TRUE))
+gamma = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
+negCtrl = Gilbert2014Table2CRISPRi$Growth.phenotype..gamma.[which(Gilbert2014Table2CRISPRi$gene == "negative_control")]
+geneIds = Gilbert2014Table2CRISPRi$gene[which(Gilbert2014Table2CRISPRi$gene != "negative_control")]
+# need to remove the negative_control factor
+geneIds = factor(geneIds, levels = unique(geneIds))
+x = data.frame(gamma = c(gamma, negCtrl), category = c(rep("gene targeting", times = length(gamma)), rep("negative control", times = length(negCtrl))))
+x$category = factor(x$category, levels = c("negative control", "gene targeting"))
+library(ggplot2)
+ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+```
+
+We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We can now apply CRISPhieRmix to this data to identify genes that led to decreased growth or cell death.
+
+```{r}
+library(CRISPhieRmix)
+gamma.CRISPhieRmix = CRISPhieRmix(x = gamma, geneIds = geneIds, negCtrl = negCtrl, mu = -0.2, sigma = 0.1, VERBOSE = TRUE, PLOT = TRUE)
+hist(gamma.CRISPhieRmix$FDR, breaks = 100)
+sum(gamma.CRISPhieRmix$FDR < 0.1)
+```
+
+
+Let's look at how much these genes overlap the gold standard list of core constitutive genes and non-essential genes of [Hart et al. 2014](http://msb.embopress.org/content/10/7/733).  
+
+```{r}
+ConstitutiveCoreEssentialGenes = scan("ConstitutiveCoreEssentialGenes.txt", what = character())
+length(ConstitutiveCoreEssentialGenes)
+length(intersect(ConstitutiveCoreEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
+NonEssentialGenes = scan("NonEssentialGenes.txt", what = character())
+length(NonEssentialGenes)
+length(intersect(NonEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.1)]))
+```
+
+From this we can estimate the empirical false discovery rate at FDR level $0.1$ as $3/1373 \approx 0.002$ and an empirical true positive rate as $170/217 \approx 0.78$.  The empirical vs estimated FDR curve is plotted below.
+
+```{r}
+EssentialGenes = data.frame(gene = factor(c(sapply(ConstitutiveCoreEssentialGenes, toString), sapply(NonEssentialGenes, toString))), essential = c(rep(1, times = length(ConstitutiveCoreEssentialGenes)), rep(0, times = length(NonEssentialGenes))))
+EssentialGenes = EssentialGenes[which(EssentialGenes$gene %in% gamma.CRISPhieRmix$genes), ]
+gamma.CRISPhieRmixEssential = data.frame(genes = gamma.CRISPhieRmix$genes, FDR = gamma.CRISPhieRmix$FDR)
+gamma.CRISPhieRmixEssential = gamma.CRISPhieRmixEssential[which(gamma.CRISPhieRmixEssential$genes %in% EssentialGenes$gene), ]
+gamma.CRISPhieRmixEssential = gamma.CRISPhieRmixEssential[match(EssentialGenes$gene, gamma.CRISPhieRmixEssential$genes), ]
+fdr.curve <- function(thresh, fdrs, baseline){
+  w = which(fdrs < thresh)
+  if(length(w) > 0){
+    return(sum(1 - baseline[w])/length(w))
+  }
+  else{
+    return(NA)
+  }
+}
+s = seq(from = 0, to = 1, length = 1001)
+gamma.CRISPhieRmixFdrCurve = sapply(s, function(t) fdr.curve(t, gamma.CRISPhieRmixEssential$FDR, EssentialGenes$essential))
+plot(c(0, s[!is.na(gamma.CRISPhieRmixFdrCurve)]), c(0, gamma.CRISPhieRmixFdrCurve[!is.na(gamma.CRISPhieRmixFdrCurve)]), type = "l", xlab = "estimated FDR", ylab = "empirical FDR", main = "Estimated vs Empirical Fdr", xlim = c(0, 1), ylim = c(0, 1), lwd = 2, col = "deepskyblue")
+abline(0, 1)
+```
+
+The receiver operator curve based on the above annotated genes is given below.
+
+```{r}
+gamma.CRISPhieRmixROC = pROC::roc(EssentialGenes$essential, gamma.CRISPhieRmixEssential$FDR, auc = TRUE)
+gamma.CRISPhieRmixROC
+plot(gamma.CRISPhieRmixROC, col = "deepskyblue", lwd = 2)
+```
