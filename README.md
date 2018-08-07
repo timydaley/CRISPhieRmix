@@ -10,4 +10,6 @@ CRISPhieRmix takes as input normalized log fold changes of the individual gene t
 CRISPhieRmix::CRISPhieRmix(x = log2fc, geneIds = geneIds, negCtrl = log2fc.negCtrl)
 ```
 
+Full details on how to use CRISPhieRmix, with detailed instructions and examples can be found in the manual and vignette, in the vignette section. 
+
 If you have any questions or comments, please email me at tdaley@stanford.edu.  For any issues with the software, please create an issue through github with the Issues link above.  
