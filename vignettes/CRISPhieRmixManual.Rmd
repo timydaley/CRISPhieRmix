@@ -178,3 +178,40 @@ ggplot(x, aes(x = log2fc, colour = category)) + geom_density() + theme_bw() +
 ```
 
 As we can see, the distribution of the negative control guides do not line up with the central peak of the gene targeting guides.  This indicates that the distribution of the negative control guides does not reflect the null genes.  In this case, using the negative control guides to estimate the null will likely lead to very incorrect inferences and is not suggested.  It's unclear why the negative control guides do not look like the central peak.  If this is the case in your experiment, it is worth investigating why.
+
+## Using a normal hierarchical mixture to rank genes without negative control guides
+
+We'll look at ranking the genes without negative control guides for this data.
+
+```{r}
+Wang2015NormalMix = CRISPhieRmix(x = log2fc.geneTargeting, geneIds = geneIds, PLOT = TRUE, VERBOSE = TRUE)
+Wang2015NormalMixGeneScores = data.frame(genes = Wang2015NormalMix$genes, FDR = Wang2015NormalMix$FDR)
+head(Wang2015NormalMixGeneScores[order(Wang2015NormalMixGeneScores$FDR, decreasing = FALSE), ], 20)
+hist(Wang2015NormalMixGeneScores$FDR, breaks = 100, col = "grey")
+sum(Wang2015NormalMixGeneScores$FDR == 0)
+EssentialGenes = data.frame(gene = factor(c(sapply(ConstitutiveCoreEssentialGenes, toString),
+                                            sapply(NonEssentialGenes, toString))), 
+                            essential = c(rep(1, times = length(ConstitutiveCoreEssentialGenes)), 
+                                          rep(0, times = length(NonEssentialGenes))))
+EssentialGenes = EssentialGenes[which(EssentialGenes$gene %in% Wang2015NormalMixGeneScores$genes), ]
+Wang2015NormalMixGeneScoresEssential = Wang2015NormalMixGeneScores[which(Wang2015NormalMixGeneScores$genes %in% EssentialGenes$gene), ]
+Wang2015NormalMixGeneScoresEssential = Wang2015NormalMixGeneScoresEssential[match(EssentialGenes$gene, Wang2015NormalMixGeneScoresEssential$genes), ]
+
+Wang2015NormalMixGeneScoresEssentialFdrCurve = sapply(s, function(t) fdr.curve(t, 
+                                                                    Wang2015NormalMixGeneScoresEssential$FDR,
+                                                             EssentialGenes$essential))
+plot(c(0, s[!is.na(Wang2015NormalMixGeneScoresEssentialFdrCurve)]), c(0, Wang2015NormalMixGeneScoresEssentialFdrCurve[!is.na(Wang2015NormalMixGeneScoresEssentialFdrCurve)]), type = "l", xlab = "estimated FDR", 
+     ylab = "empirical FDR", main = "Estimated vs Empirical Fdr", xlim = c(0, 1), ylim = c(0, 1),
+     lwd = 2, col = "deepskyblue")
+abline(0, 1)
+
+Wang2015NormalMixGeneScoresEssentialROC = pROC::roc(EssentialGenes$essential, 
+                                  Wang2015NormalMixGeneScoresEssential$FDR, auc = TRUE)
+Wang2015NormalMixGeneScoresEssentialROC
+plot(Wang2015NormalMixGeneScoresEssentialROC, col = "darkgreen", lwd = 2, xlim = c(0, 1), ylim = c(0, 1), main = "ROC")
+```
+
+As we can see, the normal hierarchical mixture model is calling way too many genes as significant, but does a good job at ranking the essential genes ahead of the non-essential genes.  We see that it calls way too many genes are essential at any level of FDR.  This will be problematic for most applications, as we can't test all the genes called positive.
+
+
+
