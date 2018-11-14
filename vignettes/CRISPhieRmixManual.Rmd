@@ -59,7 +59,7 @@ If you have any issues with software, please create an issue in the github page 
 
 [Gilbert et al. 2014](https://www.sciencedirect.com/science/article/pii/S0092867414011787) performed genome wide screens for ricin resistance and susceptibility.  In table 2, sheet 1 the authors provide the results of the CRISPRi screen at the sgRNA level.  This includes the growth phenotype gamma and the ricin phenotype rho.  They were interested in the ricin phenotype, but we will look at the growth phenotype to identify genes that lead to decreased growth and can thus be considered essential.  In the CRISPhieRmix paper we used log2 fold changes computed by DESeq2 for a fairer comparison of algorithms (since other algorithms such as MAGeCK work directly on the counts), but here we will use the scores computed by Gilbert et al to show the flexibility of the CRISPhieRmix approach.
 
-```{r}
+```{r cache=TRUE}
 Gilbert2014Table2CRISPRi = read.table(file = "Gilbert2014Table2CRISPRi.txt", sep = "\t", 
                                       header = TRUE)
 head(Gilbert2014Table2CRISPRi)
@@ -83,7 +83,7 @@ ggplot(x, aes(x = gamma, colour = category)) + geom_density() + theme_bw() +
 
 We see from the figure above that most of the gene targeting guides follow the same distribution as the negative control guides, but with a longer tail on the negative end.  This is the signal due to cells dying as a result of the gene effects.  We can now apply CRISPhieRmix to this data to identify genes that led to decreased growth or cell death.
 
-```{r}
+```{r cache=TRUE}
 library(CRISPhieRmix)
 gamma.CRISPhieRmix = CRISPhieRmix(x = gamma, geneIds = geneIds, negCtrl = negCtrl, 
                                   mu = -0.2, sigma = 0.1, VERBOSE = TRUE, PLOT = TRUE)
@@ -93,7 +93,7 @@ sum(gamma.CRISPhieRmix$FDR < 0.1)
 
 The peak near zero indicates the genes that are likely to be essential.  Let's look at how much these genes overlap the gold standard list of core constitutive genes and non-essential genes of [Hart et al. 2014](http://msb.embopress.org/content/10/7/733).  
 
-```{r}
+```{r cache=TRUE}
 ConstitutiveCoreEssentialGenes = scan("ConstitutiveCoreEssentialGenes.txt", what = character())
 length(ConstitutiveCoreEssentialGenes)
 length(intersect(ConstitutiveCoreEssentialGenes, 
@@ -105,7 +105,7 @@ length(intersect(NonEssentialGenes, gamma.CRISPhieRmix$genes[which(gamma.CRISPhi
 
 From this we can estimate the empirical false discovery rate at FDR level $0.1$ as $3/1373 \approx 0.002$ and an empirical true positive rate as $170/217 \approx 0.78$.  The empirical vs estimated FDR curve is plotted below.
 
-```{r}
+```{r cache=TRUE}
 EssentialGenes = data.frame(gene = factor(c(sapply(ConstitutiveCoreEssentialGenes, toString),
                                             sapply(NonEssentialGenes, toString))), 
                             essential = c(rep(1, times = length(ConstitutiveCoreEssentialGenes)), 
@@ -134,7 +134,7 @@ abline(0, 1)
 
 The receiver operator curve based on the above annotated genes is given below.
 
-```{r}
+```{r cache=TRUE}
 gamma.CRISPhieRmixROC = pROC::roc(EssentialGenes$essential, 
                                   gamma.CRISPhieRmixEssential$FDR, auc = TRUE)
 gamma.CRISPhieRmixROC
@@ -147,7 +147,7 @@ plot(gamma.CRISPhieRmixROC, col = "deepskyblue", lwd = 2, xlim = c(0, 1), ylim =
 
 The data shown here is taken from [Wang et al, 2015](http://science.sciencemag.org/content/350/6264/1096.full).  The authors performed a genome-wide screen for essential genes.  
 
-```{r}
+```{r cache=TRUE}
 Wang2015counts = read.table(file = "aac7041_SM_Table_S2.txt", sep = "\t", header = TRUE)
 Wang2015counts = Wang2015counts[-which(rowSums(Wang2015counts[ ,-c(1)]) == 0), ]
 which.negCtrl = which(startsWith(sapply(Wang2015counts$sgRNA, toString), "CTRL"))
@@ -183,7 +183,7 @@ As we can see, the distribution of the negative control guides do not line up wi
 
 We'll look at ranking the genes without negative control guides for this data.
 
-```{r}
+```{r cache=TRUE}
 Wang2015NormalMix = CRISPhieRmix(x = log2fc.geneTargeting, geneIds = geneIds, PLOT = TRUE, VERBOSE = TRUE)
 Wang2015NormalMixGeneScores = data.frame(genes = Wang2015NormalMix$genes, FDR = Wang2015NormalMix$FDR)
 head(Wang2015NormalMixGeneScores[order(Wang2015NormalMixGeneScores$FDR, decreasing = FALSE), ], 20)
@@ -213,5 +213,135 @@ plot(Wang2015NormalMixGeneScoresEssentialROC, col = "darkgreen", lwd = 2, xlim =
 
 As we can see, the normal hierarchical mixture model is calling way too many genes as significant, but does a good job at ranking the essential genes ahead of the non-essential genes.  We see that it calls way too many genes are essential at any level of FDR.  This will be problematic for most applications, as we can't test all the genes called positive.
 
+One strategy to use a broader tailed that is estimated from the central peak, as discussed in [Efron, 2012](http://statweb.stanford.edu/~ckirby/brad/LSI/monograph_CUP_edited.pdf).  The idea is to use a semi-parametric distribution to estimate the null distribution from the central peak.  We have found that this does not well approximate the negative control distribution because of the long tails, but it does a better job than the normal distribution.  We have also found that for some data it is very difficult to get a approximation of the central peak, so we have not implemented this in the package.  We show it here for the interest of the reader.
 
 
+\newpage
+
+## Estimating gene effect sizes after filtering
+
+One issue with CRISPhieRmix is that we only rank genes and compute false discovery rates.  Unlike MAGeCK MLE, CRISPhieRmix is currently not able to compute gene effect sizes.  The major problem is the identifiability issue.  With off-targets and gene to gene variation in guide efficiency, it is difficult to consistently estimate gene effect sizes.  But if the genes are first chosen to be likely non-null and then gene effect sizes are estimated, then it is relatively easy to estimate gene effect sizes.  Below I will show one way of how using Rstan and setting informative priors from the full analysis, though there are other ways.
+
+```{r cache=TRUE}
+# redefine geneIds
+geneIds = Gilbert2014Table2CRISPRi$gene[geneTargetingGuides]
+# need to remove the negative_control factor
+geneIds = factor(geneIds, levels = unique(geneIds))
+
+gamma.CRISPhieRmix$mixFit$mu
+gamma.CRISPhieRmix$mixFit$sigma
+gamma.CRISPhieRmix$mixFit$pq
+
+topGenes = gamma.CRISPhieRmix$genes[which(gamma.CRISPhieRmix$FDR < 0.01)]
+length(topGenes)/length(gamma.CRISPhieRmix$genes)
+
+x = data.frame(gamma = c(gamma[which(geneIds %in% topGenes)], negCtrl), 
+               category = c(rep("gene targeting", times = sum(geneIds %in% topGenes)), 
+                            rep("negative control", times = length(negCtrl))))
+x$category = factor(x$category, levels = c("negative control", "gene targeting"))
+ggplot(x, aes(x = gamma, fill = category)) + geom_density(alpha = 0.6) + theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) 
+
+topGenesGammaMixFit = mixtools::normalmixEM(gamma[which(geneIds %in% topGenes)], k = 2, mu = c(0, -0.15))
+
+hist(gamma[which(geneIds %in% topGenes)], breaks = 50, probability = TRUE, xlab = "gamma", main = "Histogram of top genes")
+s = seq(from = -2, to = 2, length = 1001)
+lines(s, topGenesGammaMixFit$lambda[1]*dnorm(s, mean = topGenesGammaMixFit$mu[1], 
+                                             sd = topGenesGammaMixFit$sigma[1]), 
+      col = "red", lwd = 2)
+lines(s, topGenesGammaMixFit$lambda[2]*dnorm(s, mean = topGenesGammaMixFit$mu[2], 
+                                             sd = topGenesGammaMixFit$sigma[2]), 
+      col = "deepskyblue", lwd = 2)
+lines(s, topGenesGammaMixFit$lambda[1]*dnorm(s, mean = topGenesGammaMixFit$mu[1], 
+                                             sd = topGenesGammaMixFit$sigma[1]) + 
+        topGenesGammaMixFit$lambda[2]*dnorm(s, mean = topGenesGammaMixFit$mu[2], 
+                                            sd = topGenesGammaMixFit$sigma[2]), 
+      col = "darkviolet", lwd = 2, lty = 2)
+```
+
+Using a normal distribution as the null distribution likely overestimates the gene effects.  The skew-$t$ can be used by storing the probabilities in a look-up table, but this is much slower.  For this example, we will use a normal distribution for the null.  We're going to assume the following hierarchical model with informative priors and fit it in stan.
+$$
+\begin{aligned}
+\gamma_{i} &\sim (1 - \pi_{g_{i}}) \mathcal{N}(0, 0.015^2) + \pi_{g_{i}} \mathcal{N}( \mu_{g_{i}}, \sigma_{1}^{2}) ;
+\notag \\
+\mu_{g} &\sim \mathcal{N} (-0.175, \sigma_{2}^{2}) ;
+\notag \\
+\pi_{g} &\sim \text{Uniform}(0, 1);
+\notag \\
+\sigma_{1}, \sigma_{2} & \sim N_{+}(0, 0.5^2).
+\end{aligned}
+$$
+
+```{r results="hide", cache=TRUE}
+model <-'
+data {
+  int<lower=1> n_sgRNAs; 
+  int<lower=1> n_genes; 
+  real x[n_sgRNAs]; // gamma 
+  int<lower=0, upper=n_genes> gene_ids[n_sgRNAs];
+}
+parameters {
+  real mu_g[n_genes];  // gene effect sizes
+  real<lower=0, upper=1> pi_g[n_genes]; // mixing parameters
+  real<lower=0> sigma1; // guide-level sd
+  real<lower=0> sigma2; // gene-level sd
+}
+model{
+  sigma1 ~ normal(0, 0.5);
+  sigma2 ~ normal(0, 0.5);
+  mu_g ~ normal(-0.175, sigma2);
+  pi_g ~ beta(1, 1);
+  for(i in 1:n_sgRNAs){
+    target += log_mix(pi_g[gene_ids[i]], 
+                      normal_lpdf(x[i] | mu_g[gene_ids[i]], sigma1), 
+                      normal_lpdf(x[i] | 0, 0.015));
+  }
+}
+'
+library(rstan)
+options(mc.cores = 2)
+gene_ids = geneIds[which(geneIds %in% topGenes)]
+gene_ids = factor(gene_ids, levels = unique(gene_ids))
+sgRNAdata = list(n_sgRNAs = length(gene_ids), 
+                 n_genes = length(levels(gene_ids)),
+                 x = gamma[which(geneIds %in% topGenes)],
+                 gene_ids = as.numeric(gene_ids))
+gammaHierMixFit = stan(model_code = model, data = sgRNAdata, chains = 4, iter = 1000); 
+gammaHierMixFit.stan.summary = summary(gammaHierMixFit, probs = c(0.05, 0.5, 0.95))$summary
+```
+
+
+```{r}
+# trace plot for sigmas
+bayesplot::mcmc_trace(as.array(gammaHierMixFit), pars = c("sigma1", "sigma2"))
+gammaHierMixFit.stan.summary = 
+  data.frame(parameter = as.factor(c(paste0("mu[", levels(gene_ids), "]"),
+                                     paste0("pi[", levels(gene_ids), "]"),  
+                                     "sigma1", "sigma2", "lp__")), gammaHierMixFit.stan.summary)
+rownames(gammaHierMixFit.stan.summary) = c()
+tail(gammaHierMixFit.stan.summary, 3)
+hist(gammaHierMixFit.stan.summary$Rhat, breaks = 50, main = "histogram of Rhat")
+gammaIndices = grep("mu", gammaHierMixFit.stan.summary$parameter)
+x = gammaHierMixFit.stan.summary$X50.[gammaIndices]
+hist(x, breaks = 100, xlim = c(min(x), 0), col = "grey", main = "estimated gene effects")
+abline(v = -0.175, lwd = 2, lty = 2)
+mixingIndices = grep("pi", gammaHierMixFit.stan.summary$parameter)
+x = gammaHierMixFit.stan.summary$X50.[mixingIndices]
+hist(x, breaks = 100, xlim = c(0, 1), col = "grey", main = "estimated mixing parameter")
+abline(v = 0.5, lwd = 2, lty = 2)
+y = data.frame(genes = levels(gene_ids), 
+               geneGamma = gammaHierMixFit.stan.summary$X50.[gammaIndices], 
+               geneGammaLowerCI = gammaHierMixFit.stan.summary$X5.[gammaIndices], 
+               geneGammaUpperCI = gammaHierMixFit.stan.summary$X95.[gammaIndices],
+               geneMixing = gammaHierMixFit.stan.summary$X50.[mixingIndices],
+               geneMixingLowerCI = gammaHierMixFit.stan.summary$X5.[mixingIndices], 
+               geneMixingUpperCI = gammaHierMixFit.stan.summary$X95.[mixingIndices])
+library(ggplot2)
+ggplot(y, aes(x = geneGamma, y = geneMixing))  + 
+  geom_errorbar(aes(ymin = geneMixingLowerCI, ymax = geneMixingUpperCI), colour = "grey", alpha = 0.35) +  
+  geom_errorbarh(aes(xmin = geneGammaLowerCI, xmax = geneGammaUpperCI), colour = "grey", alpha = 0.35) + 
+  theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+  geom_point(alpha = 0.75) + xlab("gamma") + ylab("pi") + ggtitle("gene level effect size vs guide efficiency") 
+```
+
+The trace plots and Rhat's near 1 means the model is likely converged.  We see that when the gene effect size is far away from zero, mixing parameters can vary a lot.  On the other hand, when the gene effect size is near zero it is more difficult to find genes with low mixing parameters.  This is likely because genes with small effects and low mixing parameters are chosen by CRISPhieRmix to less likely be null.
