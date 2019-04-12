@@ -10,10 +10,9 @@ LinkingTo:
   Rcpp(>= 0.12.17)
 Imports:
   Rcpp,
-  statmod 
-Suggests:
+  statmod,
   sn,
-  nloptr 
+  nloptr
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
