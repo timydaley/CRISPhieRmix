@@ -418,7 +418,12 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                               pqPos = params$pqPos, pqNeg = params$pqNeg,
                               muPos = params$muPos, muNeg = params$muNeg,
                               sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
-                              VERBOSE = VERBOSE)
+                              VERBOSE = FALSE)
+      if(VERBOSE){
+        cat("mu = ", skewtMix$muNeg, ", ", skewtMix$muPos, "\n")
+        cat("sigma = ", skewtMix$sigmaNeg, ", ", skewtMix$sigmaPos, "\n")
+        cat("pq = ", skewtMix$pqNeg, ", ", skewtMix$pqPos, "\n")
+      }
 
       if(PLOT){
        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 101)
