@@ -477,7 +477,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                   "maxeval" = 10000)
       # non-linear optimization
       params_guess = c(pq, mu, sigma)
-      negLike = sn::dst(log2fc, dp = negCtrlFit$dp)
+      negLike = sn::dst(x, dp = negCtrlFit$dp)
 
       res = nloptr::nloptr(x0 = params_guess, eval_f = f, eval_grad_f = f_grad, opts = opts, lb = lowerbounds, ub = upperbounds, log2fc = x, negLike = negLike)
       skewtMix = list(pq = res$solution[1], mu = res$solution[2], sigma = res$solution[3], skewtFit = negCtrlFit, posProbs = skewtMixExpectationStep2comp(x, skewtFit = negCtrlFit, mu = res$solution[2], sigma = res$solution[3], pq = res$solution[1]))
