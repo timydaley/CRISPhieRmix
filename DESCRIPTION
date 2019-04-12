@@ -13,6 +13,7 @@ Imports:
   statmod 
 Suggests:
   sn
+  nloptr
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
