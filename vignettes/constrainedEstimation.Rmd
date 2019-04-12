@@ -1,0 +1,321 @@
+---
+title: "Constrained optimization of a mixture model"
+author: "Timothy Daley"
+date: "4/11/2019"
+output: html_document
+---
+
+In CRISPR screens we know the direction of the desired effect.  For example, in loss of function screens such as screens for essential genes, the effects of essential genes will be negative.  A negative gene effect will indicate that the cells with that gene modified (usually cut or inhibited) either die or have a reduced replication rate.  In gain of functions screens the effect will be positive, as these are genes that lead to an increase in the desired phenotype.  Any gene that shows an effect in the opposite direction is either an unintended or off-target effect, or is due to random chance.  
+
+My desire with this document is to show how to estimate the mixture distribution under the restriction that the effect needs to be strictly positive.  Formally, let $x_{i}, i = 1, \ldots, N$ be the $\log$ fold changes for $N$ guides.  $x_{i}$ is assumed to follow a mixture distribution so that the likelhood is given by
+$$
+L(f_{1}, f_{0}, p; x_{i}, i = 1, \ldots, N) = \prod_{i = 1}^{N} \big(pf_{1} (x_{i}) + (1 - p)f_{0}(x_{i}) \big).
+$$
+We'll assume that $f_{0}$ is known and need not be computed, while we assumed that $f_{1}$ is a normal distribution with unknown mean and variance.  The log likelihood is then given by
+$$
+\log L(\mu, \sigma^{2}, p; f_{0}, x_{i}, i = 1, \ldots, N) = \sum_{i = 1}^{N} \log \bigg(p (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) + (1 - p) f_{0}(x_{i}) \bigg).
+$$
+The derivatives are given by
+$$
+\begin{aligned}
+&\frac{\partial}{\partial p} \log L(\mu, \sigma^{2}, p; f_{0}, x_{i}, i = 1, \ldots, N) \notag \\
+&= \sum_{i = 1}^{N} \Big(p (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) + (1 - p) f_{0}(x_{i}) \Big)^{-1} \Big( (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) - f_{0}(x_{i}) \Big),
+\notag
+\end{aligned}
+$$
+$$
+\begin{aligned}
+&\frac{\partial}{\partial \mu} \log L(\mu, \sigma^{2}, p; f_{0}, x_{i}, i = 1, \ldots, N) 
+\notag \\
+&= \sum_{i = 1}^{N} \Big(p (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) + (1 - p) f_{0}(x_{i}) \Big)^{-1} \Big( p (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) \Big( (x_{i} - \mu)^{2}/\sigma^{2} \Big)   \Big),
+\notag
+\end{aligned}
+$$
+$$
+\begin{aligned}
+&\frac{\partial}{\partial \sigma} \log L(\mu, \sigma^{2}, p; f_{0}, x_{i}, i = 1, \ldots, N) 
+\notag \\
+&= \sum_{i = 1}^{N} \Big(p (2 \pi \sigma^{2})^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) + (1 - p) f_{0}(x_{i}) \Big)^{-1} \Big( - p (2 \pi)^{-1/2} \sigma^{-2}  \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big)
+\notag \\
+& \qquad \qquad \qquad \qquad \qquad  \qquad \qquad \qquad \qquad \qquad  \qquad \quad + p (2 \pi \sigma)^{-1/2} \text{exp} \Big(-(x_{i} - \mu)^{2}/2 \sigma^{2} \Big) \Big( (x_{i} - \mu)^{2} / \sigma^{3} \Big) \Big).
+\notag
+\end{aligned}
+$$
+
+
+Without loss of generality, let's suppose that we are analysing a loss of function screen.  Therefore we have the following constraints,
+$$
+\begin{aligned}
+0 \leq & p \leq 1,
+\notag \\
+& \mu \leq 0,
+\notag \\
+& \sigma \geq 0.
+\notag 
+\end{aligned}
+$$
+
+I'll see if I can use the R package nloptr to optimize the above likelihood function.  One worry I have is that the mean may tend to zero with a very large variance.  This would destroy the meaning that $f_{1}$ would have.
+
+```{r}
+Simulation_l2fc = read.table(file = "~/sgRNA/CRISPRscreenBenchmarking/data/SunilSims/test_data_4_10_19/CRISPhieRmix_Simulation_l2fc.csv", sep = ",", header = TRUE)
+dim(Simulation_l2fc)
+Simulation_l2fc_control = read.table(file = "~/sgRNA/CRISPRscreenBenchmarking/data/SunilSims/test_data_4_10_19/Simulation_l2fc_control.csv", sep = ",", header = TRUE)
+dim(Simulation_l2fc_control)
+counts = read.table(file = "~/sgRNA/CRISPRscreenBenchmarking/data/SunilSims/test_data_4_10_19/CRISPhieRmix_Simulation_raw_input.csv", header = TRUE, sep = ",")
+dim(counts)
+
+x = data.frame(log2fc = c(Simulation_l2fc$x, Simulation_l2fc_control$x), control = (counts$gene_id == "control"), essential = factor(counts$Essentiality))
+head(x)
+
+library(ggplot2)
+ggplot(x, aes(x = log2fc, col = control, fill = control)) + geom_density(alpha = 0.6)
+```
+
+As you can see, there appears to be signal in the gene targetting guides in both the negative and positive.  The negative side is all that we care about.
+
+```{r}
+negCtrlFit = sn::st.mple(y = Simulation_l2fc_control$x)
+negLike = sn::dst(Simulation_l2fc$x, dp = negCtrlFit$dp)
+library(ggplot2)
+s = seq(from = -20, to = 20, length = 2001)
+x = data.frame(log2fc = c(Simulation_l2fc$x, Simulation_l2fc_control$x), control = (counts$gene_id == "control"), essential = factor(counts$Essentiality))
+ggplot() + geom_density(data = x, aes(x = log2fc, col = control, fill = control), alpha = 0.6) + geom_line(data = data.frame(log2fc = s, y = sn::dst(s, dp = negCtrlFit$dp)), aes(x = log2fc, y = y))
+
+logL <- function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum(log(mixtureLike)))
+}
+
+logL_p_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(f1 - negLike)))
+}
+
+logL_mu_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(p*f1*(x - mu)/sigma^2)))
+}
+
+logL_sigma_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(-p*f1/sigma + p*f1*((x - mu)^2)/sigma^3)))
+}
+
+f <-function(x){
+  p = x[1]
+  mu = x[2]
+  sigma = x[3]
+  return(-logL(p, mu, sigma, Simulation_l2fc$x, negLike))
+}
+
+f_grad <-function(x){
+  p = x[1]
+  mu = x[2]
+  sigma = x[3]
+  return(c(-logL_p_deriv(p, mu, sigma, Simulation_l2fc$x, negLike),
+           -logL_mu_deriv(p, mu, sigma, Simulation_l2fc$x, negLike),
+           -logL_sigma_deriv(p, mu, sigma, Simulation_l2fc$x, negLike)))
+}
+
+opts = list("algorithm" = "NLOPT_LD_LBFGS",
+            "xtol" = 1e-8,
+            "print_level" = 2,
+            "check_derivatives" = TRUE,
+            "check_derivatives_print" = "all")
+
+params_guess = c(0.1, -5, 2)
+
+res = nloptr::nloptr(x0 = params_guess, eval_f = f, eval_grad_f = f_grad, opts = opts, lb = c(0, -Inf, 0), ub = c(1, 0, Inf))
+summary(res)
+res$solution
+res$objective
+p = res$solution[1]
+mu = res$solution[2]
+sigma = res$solution[3]
+
+ggplot() + geom_density(data = x, aes(x = log2fc, col = control, fill = control), alpha = 0.6) + geom_line(data = data.frame(x = s, y = (1 - p)*sn::dst(s, dp = negCtrlFit$dp)), aes(x = x, y = y), col = "red") + geom_line(data = data.frame(x = s, y = p*dnorm(s, mean = mu, sd = sigma)), aes(x = x, y = y), col = "darkgreen") + geom_line(data = data.frame(x = s, y = p*dnorm(s, mean = mu, sd = sigma) + (1 - p)*sn::dst(s, dp = negCtrlFit$dp)), aes(x = x, y = y), col = "darkviolet", lty = 2) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+Let's compare the above solution to using the EM algorithm on data for which the EM algorithm works well.
+
+```{r}
+# from CRISPhieRmix
+skewtMixMaxStep2comp <- function(x, posProbs, skewtFit = NULL){
+  pq = mean(posProbs)
+  mu = mean(posProbs*x)/mean(posProbs)
+  sigma = sqrt(mean(posProbs*(x - mu)^2)/mean(posProbs))
+  if(is.null(skewtFit)){
+    skewtFit = sn::st.mple(y = x, w = 1 - posProbs)
+  }
+  return(list(pq = pq, mu = mu, sigma = sigma, skewtFit = skewtFit))
+}
+
+skewtMixExpectationStep2comp <- function(x, skewtFit, mu, sigma, pq){
+  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
+  log_null_prob = log(1 - pq) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
+  log_denom = apply(cbind(log_pos_prob, log_null_prob), 1, logSumLogVec)
+  return(exp(log_pos_prob - log_denom))
+}
+
+logSumLogVec <- function(logVec){
+  log_max = max(logVec)
+  logVec = logVec[-which.max(logVec)]
+  return(log_max + log(1 + sum(exp(logVec - log_max))))
+}
+
+skewt2compLogLike <- function(x, pq, skewtFit, mu, sigma){
+  log_pos_prob = log(pq) + dnorm(x, mean = mu, sd = sigma, log = TRUE)
+  log_null_prob = log(1 - pq) + sn::dst(x, dp = skewtFit$dp, log = TRUE)
+  return(sum(apply(cbind(log_pos_prob, log_null_prob), 1, logSumLogVec)))
+}
+
+skewtEM2comp <- function(x, skewtFit = NULL, max_iter = 1000, tol = 1e-10,
+                         pq = 0.1, mu = 4, sigma = 1, VERBOSE = FALSE){
+  n_obs = length(x)
+  providedFit = !is.null(skewtFit)
+  loglike = -1e100;
+  iter = 0;
+  posProbs = rep(pq, times = n_obs)
+  repeat{
+    prevloglike = loglike
+    # max step
+    if(providedFit){
+      updated_params = skewtMixMaxStep2comp(x, posProbs, skewtFit)
+    }
+    else{
+      updated_params = skewtMixMaxStep2comp(x, posProbs, skewtFit = NULL)
+    }
+    pq = updated_params$pq
+    mu = updated_params$mu
+    sigma = updated_params$sigma
+    skewtFit = updated_params$skewtFit
+    # expectation step
+    posProbs = skewtMixExpectationStep2comp(x, skewtFit, mu, sigma, pq)
+    
+    loglike = skewt2compLogLike(x, pq, skewtFit, mu, sigma)
+    iter = iter + 1
+    if(VERBOSE){
+      cat("iter: ", iter, "\n")
+      cat("loglike = ", loglike, "\n")
+      cat("prevloglike = ", prevloglike, "\n")
+      cat("mu = ", mu, "\n")
+      cat("sigma = ", sigma, "\n")
+      cat("pq = ", pq, "\n")
+    }
+    if(abs(loglike - prevloglike)/n_obs < tol | iter > max_iter){
+      if(VERBOSE){
+        cat("stop after iteration ", iter, "\n")
+      }
+      break
+    }
+  }
+  return(list(posProbs = posProbs, skewtFit = skewtFit,
+              pq = pq, mu = mu, sigma = sigma))
+}
+
+# process test data
+Hart2015HCT116lib1 = read.table(file = "~/sgRNA/CRISPRscreenBenchmarking/data/Hart2015/readcount-HCT116_1-lib1.txt", header = TRUE, sep = "\t")
+sgRNAseqs = sapply(Hart2015HCT116lib1$GENE_CLONE, function(g) unlist(strsplit(toString(g), "_"))[2])
+head(sort(table(Hart2015HCT116lib1$GENE), decreasing = TRUE))
+GuideLabelsLib1 = read.table(file = "~/sgRNA/CRISPRscreenBenchmarking/data/Hart2015/GuideLabelsLib1.txt", sep = "\t", header = TRUE)
+GuideLabelsLib1 = GuideLabelsLib1[match(sgRNAseqs, GuideLabelsLib1$gRNA.Sequence), ]
+counts = Hart2015HCT116lib1[ , c("LIB1_T0", "LIB1_T18_A", "LIB1_T18_B")]
+# remove guides with zero counts
+guides2remove = which(rowSums(counts) == 0)
+counts = counts[-guides2remove, ]
+GuideLabelsLib1 = GuideLabelsLib1[-guides2remove, ]
+sgRNAseqs = sgRNAseqs[-guides2remove]
+Hart2015HCT116lib1 = Hart2015HCT116lib1[-guides2remove, ]
+colData = data.frame(condition = factor(c(0, 1, 1)))
+rownames(colData) = colnames(counts)
+Hart2015HCT116lib1DESeq = DESeq2::DESeqDataSetFromMatrix(countData = counts, colData = colData, design = ~condition)
+Hart2015HCT116lib1DESeq = DESeq2::DESeq(Hart2015HCT116lib1DESeq)
+Hart2015HCT116lib1DESeq = DESeq2::results(Hart2015HCT116lib1DESeq)
+log2fc = Hart2015HCT116lib1DESeq$log2FoldChange
+negCtrlIndicator = (Hart2015HCT116lib1$GENE %in% c("chr10") & GuideLabelsLib1$Target == "chr10Rand")
+library(ggplot2)
+x = data.frame(log2fc = log2fc, negCtrl = factor(negCtrlIndicator))
+x$negCtrl = factor(x$negCtrl, levels = c("TRUE", "FALSE"))
+ggplot(x, aes(x = log2fc, col = negCtrl)) + geom_density() + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+log2fc.geneTargeting = log2fc[which(!negCtrlIndicator)]
+log2fc.negCtrl = log2fc[which(negCtrlIndicator)]
+geneIds = Hart2015HCT116lib1$GENE[which(!negCtrlIndicator)]
+geneIds = factor(geneIds, levels = unique(geneIds))
+library(CRISPhieRmix)
+Hart2015HCT116lib1CRISPhieRmix = CRISPhieRmix::CRISPhieRmix(x = log2fc.geneTargeting, geneIds = geneIds, negCtrl = log2fc.negCtrl, mu = -8, sigma = 2, PLOT = TRUE, VERBOSE = TRUE) 
+hist(Hart2015HCT116lib1CRISPhieRmix$FDR, breaks = 100)
+
+negCtrlFit = sn::st.mple(y = log2fc.negCtrl)
+negLike = sn::dst(log2fc.geneTargeting, dp = negCtrlFit$dp)
+library(ggplot2)
+
+logL <- function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum(log(mixtureLike)))
+}
+
+logL_p_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(f1 - negLike)))
+}
+
+logL_mu_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(p*f1*(x - mu)/sigma^2)))
+}
+
+logL_sigma_deriv <-function(p, mu, sigma, x, negLike){
+  f1 = dnorm(x, mean = mu, sd = sigma)
+  mixtureLike = p*f1 + (1 - p)*negLike
+  return(sum((mixtureLike^(-1))*(-p*f1/sigma + p*f1*((x - mu)^2)/sigma^3)))
+}
+
+f <-function(x){
+  p = x[1]
+  mu = x[2]
+  sigma = x[3]
+  return(-logL(p, mu, sigma, log2fc.geneTargeting, negLike))
+}
+
+f_grad <-function(x){
+  p = x[1]
+  mu = x[2]
+  sigma = x[3]
+  return(c(-logL_p_deriv(p, mu, sigma, log2fc.geneTargeting, negLike),
+           -logL_mu_deriv(p, mu, sigma, log2fc.geneTargeting, negLike),
+           -logL_sigma_deriv(p, mu, sigma, log2fc.geneTargeting, negLike)))
+}
+
+opts = list("algorithm" = "NLOPT_LD_LBFGS",
+            "xtol" = 1e-8,
+            "print_level" = 2,
+            "check_derivatives" = TRUE,
+            "check_derivatives_print" = "all")
+
+params_guess = c(0.1, -5, 2)
+
+res = nloptr::nloptr(x0 = params_guess, eval_f = f, eval_grad_f = f_grad, opts = opts, lb = c(0, -Inf, 0), ub = c(1, 0, Inf))
+summary(res)
+res$solution
+res$objective
+
+pq = res$solution[1]
+mu = res$solution[2]
+sigma = res$solution[3]
+
+Hart2015HCT116lib1CRISPhieRmix$mixFit$mu
+Hart2015HCT116lib1CRISPhieRmix$mixFit$sigma
+Hart2015HCT116lib1CRISPhieRmix$mixFit$pq
+
+x = data.frame(nlopt = res$solution, EM = c(Hart2015HCT116lib1CRISPhieRmix$mixFit$pq, Hart2015HCT116lib1CRISPhieRmix$mixFit$mu, Hart2015HCT116lib1CRISPhieRmix$mixFit$sigma))
+rownames(x) = c(pq, mu, sigma)
+pander::pander(x)
+```
