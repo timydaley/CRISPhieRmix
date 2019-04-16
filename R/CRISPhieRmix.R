@@ -235,7 +235,7 @@ skewtEM3comp <- function(x, skewtFit = NULL,
     loglike = skewt3compLogLike(x, skewtFit, pqPos, pqNeg,
                                 muPos, muNeg, sigmaPos, sigmaNeg)
     iter = iter + 1
-    if(VERBOSE){
+    if(VERBOSE & (iter %% 50 == 0)){
       cat("iter = ", iter, "\n",
           "prevloglike = ", prevloglike, "\n",
           "loglike = ", loglike, "\n",
@@ -245,9 +245,6 @@ skewtEM3comp <- function(x, skewtFit = NULL,
           "muNeg = ", muNeg, "\n",
           "sigmaPos = ", sigmaPos, "\n",
           "sigmaNeg = ", sigmaNeg, "\n")
-    }
-    if(VERBOSE & (iter %% 50 == 0)){
-      cat("iter: ", iter, "\n")
     }
     if(abs(loglike - prevloglike)/n_obs < tol | iter > max_iter){
       if(VERBOSE){
@@ -418,7 +415,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                               pqPos = params$pqPos, pqNeg = params$pqNeg,
                               muPos = params$muPos, muNeg = params$muNeg,
                               sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
-                              VERBOSE = FALSE)
+                              VERBOSE = VERBOSE)
       if(VERBOSE){
         cat("mu = ", skewtMix$muNeg, ", ", skewtMix$muPos, "\n")
         cat("sigma = ", skewtMix$sigmaNeg, ", ", skewtMix$sigmaPos, "\n")
