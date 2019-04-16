@@ -246,7 +246,7 @@ skewtEM3comp <- function(x, skewtFit = NULL,
           "sigmaPos = ", sigmaPos, "\n",
           "sigmaNeg = ", sigmaNeg, "\n")
     }
-    if((loglike - prevloglike)/n_obs < tol | iter > max_iter){
+    if(loglike - prevloglike < tol | iter > max_iter){
       if(VERBOSE){
         cat("stop after iteration ", iter, "\n")
       }
@@ -404,7 +404,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     }
     if(BIMODAL){
       if(VERBOSE){
-        cat("3 groups \n")
+        cat("3 groups with negative control \n")
       }
       params = setBimodalParams(mu, sigma, pq)
       if(VERBOSE){
@@ -531,7 +531,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
     require(mixtools)
     if(BIMODAL){
       if(VERBOSE){
-        cat("3 groups \n")
+        cat("3 groups without negative control \n")
         cat("mu = ", mu, "\n")
         cat("sigma = ", sigma, "\n")
         cat("pq = ", pq, "\n")
