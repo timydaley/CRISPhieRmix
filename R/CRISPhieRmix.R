@@ -235,7 +235,7 @@ skewtEM3comp <- function(x, skewtFit = NULL,
     loglike = skewt3compLogLike(x, skewtFit, pqPos, pqNeg,
                                 muPos, muNeg, sigmaPos, sigmaNeg)
     iter = iter + 1
-    if(VERBOSE & (iter %% 50 == 0)){
+    if(VERBOSE & (iter %% 1 == 0)){
       cat("iter = ", iter, "\n",
           "prevloglike = ", prevloglike, "\n",
           "loglike = ", loglike, "\n",
