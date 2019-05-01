@@ -416,7 +416,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                               pqPos = params$pqPos, pqNeg = params$pqNeg,
                               muPos = params$muPos, muNeg = params$muNeg,
                               sigmaPos = params$sigmaPos, sigmaNeg = params$sigmaNeg,
-                              VERBOSE = VERBOSE)
+                              VERBOSE = FALSE)
       if(VERBOSE){
         cat("mu = ", skewtMix$muNeg, ", ", skewtMix$muPos, "\n")
         cat("sigma = ", skewtMix$sigmaNeg, ", ", skewtMix$sigmaPos, "\n")
