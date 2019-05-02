@@ -39,7 +39,7 @@ geneExpectations2Group <-function(x, geneIds, q, p,
   return(exp(log(p) + log_pos_gene_probs - log_denom))
 }
 
-
+#' @export
 gaussQuadGeneExpectation2Groups <- function(x, geneIds,
                                             log_alt_guide_probs,
                                             log_null_guide_probs,
@@ -435,11 +435,11 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
       log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigmaPos, log = TRUE)
       log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigmaNeg, log = TRUE)
-      posGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
+      posGenePosteriors_v1 = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
                                                           log_alt_guide_probs = log_pos_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
                                                           lowerLim = skewtMix$pqPos,
-                                                          upperLim = 1,
+                                                          upperLim = 1 - skewtMix$pqNeg,
                                                           nMesh = nMesh)
       negGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
                                                           log_alt_guide_probs = log_neg_guide_probs,
