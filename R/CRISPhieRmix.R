@@ -439,13 +439,13 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           log_alt_guide_probs = log_pos_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
                                                           lowerLim = skewtMix$pqPos,
-                                                          upperLim = 1 - skewtMix$pqNeg,
+                                                          upperLim = 1,
                                                           nMesh = nMesh)
       negGenePosteriors = gaussQuadGeneExpectation2Groups(x = x, geneIds = geneIds,
                                                           log_alt_guide_probs = log_neg_guide_probs,
                                                           log_null_guide_probs = log_null_guide_probs,
                                                           lowerLim = skewtMix$pqNeg,
-                                                          upperLim = 1 - skewtMix$pqPos,
+                                                          upperLim = 1,
                                                           nMesh = nMesh)
       negLocFDR = 1 - negGenePosteriors
       negFDR = sapply(negLocFDR, function(x) mean(negLocFDR[which(negLocFDR <= x)]))
