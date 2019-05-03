@@ -442,9 +442,15 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
         lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg) +
                 (1 - skewtMix$pqPos - skewtMix$pqNeg)*sn::dst(b, dp = negCtrlFit$dp), col = "darkviolet", lty = 2, lwd = 2)
       }
+      if(VERBOSE){
+        cat("computing gene level posteriors \n")
+      }
       log_null_guide_probs = sn::dst(x, dp = negCtrlFit$dp, log = TRUE)
       log_pos_guide_probs = dnorm(x, mean = skewtMix$muPos, sd = skewtMix$sigmaPos, log = TRUE)
       log_neg_guide_probs = dnorm(x, mean = skewtMix$muNeg, sd = skewtMix$sigmaNeg, log = TRUE)
+      if(VERBOSE){
+        cat("marginalizing guide variability \n")
+      }
       posGenePosteriors = gaussQuadGeneExpectation3Groups(x = x, geneIds = geneIds,
                                                           log_pos_guide_probs = log_pos_guide_probs,
                                                           log_neg_guide_probs = log_neg_guide_probs,
@@ -460,6 +466,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           tau_pos = skewtMix$pqNeg,
                                                           tau_neg = skewtMix$pqPos,
                                                           nMesh = 100)
+      if(VERBOSE){
+        cat("computing FDRs \n")
+      }
       negLocFDR = 1 - negGenePosteriors
       negFDR = sapply(negLocFDR, function(x) mean(negLocFDR[which(negLocFDR <= x)]))
       posLocFDR = 1 - posGenePosteriors
