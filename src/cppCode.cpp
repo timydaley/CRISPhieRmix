@@ -26,14 +26,13 @@ double logSumWeightedAverage(double log_x,
 }
 
 // [[Rcpp::export]]
-NumericVector integratedExpectation(NumericVector geneIds,
-                                    NumericVector log_alt_guide_probs,
-                                    NumericVector log_null_guide_probs,
-                                    NumericVector q,
-                                    NumericVector p,
-                                    NumericVector weights){
-  
-  assert(q.size() == p.size());
+NumericVector integratedExpectation2groups(NumericVector geneIds,
+                                           NumericVector log_alt_guide_probs,
+                                           NumericVector log_null_guide_probs,
+                                           NumericVector q,
+                                           double tau,
+                                           NumericVector weights){
+// make sure the size of the weights agree weight the size of the mesh
   assert(q.size() == weights.size());
   int nGenes = max(geneIds);  
   
@@ -42,8 +41,8 @@ NumericVector integratedExpectation(NumericVector geneIds,
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNullGeneProbs(nGenes);
     for(size_t j = 0; j < logPosGeneProbs.size(); j++){
-      logPosGeneProbs(j) = log(p(i));
-      logNullGeneProbs(j) = log(1 - p(i));
+      logPosGeneProbs(j) = log(tau) - log(q(i));
+      logNullGeneProbs(j) = log(1 - tau/q(i));
     }
     for(size_t j = 0; j < geneIds.size(); j++){
       logPosGeneProbs(geneIds(j) - 1) += logSumWeightedAverage(log_alt_guide_probs(j),
@@ -59,6 +58,49 @@ NumericVector integratedExpectation(NumericVector geneIds,
     }
   }
 
+  return genePosteriors;
+}
+
+// [[Rcpp::export]]
+NumericVector integratedExpectation3groups(NumericVector geneIds,
+                                           NumericVector log_pos_guide_probs,
+                                           NumericVector log_neg_guide_probs,
+                                           NumericVector log_null_guide_probs,
+                                           NumericVector q,
+                                           double tau_pos,
+                                           double tau_neg,
+                                           NumericVector weights){
+  
+  assert(q.size() == weights.size());
+  int nGenes = max(geneIds);
+  
+  NumericVector genePosteriors(nGenes);
+  for(size_t i = 0; i < q.size(); i++){
+    NumericVector logPosGeneProbs(nGenes);
+    NumericVector logNegGeneProbs(nGenes);
+    NumericVector logNullGeneProbs(nGenes);
+    for(size_t j = 0; j < logPosGeneProbs.size(); j++){
+      logPosGeneProbs(j) = log(tau_pos) - log(q(i));
+      logNegGeneProbs(j) = log(tau_neg) - log(q(i));
+      logNullGeneProbs(j) = log(1 - tau_pos/q(i) - tau_neg/q(i));
+    }
+    for(size_t j = 0; j < geneIds.size(); j++){
+      logPosGeneProbs(geneIds(j) - 1) += logSumWeightedAverage(log_pos_guide_probs(j),
+                                                               log_null_guide_probs(j), q(i));
+      logNegGeneProbs(geneIds(j) - 1) += logSumWeightedAverage(log_neg_guide_probs(j),
+                                                               log_null_guide_probs(j), q(i));
+      logNullGeneProbs(geneIds(j) - 1) += log_null_guide_probs(j);
+    }
+    for(size_t j = 0; j < genePosteriors.size(); j++){
+      NumericVector y(3);
+      y(0) = logPosGeneProbs(j);
+      y(1) = logNegGeneProbs(j);
+      y(2) = logNullGeneProbs(j);
+      double logDenom = logSumLogVec(y);
+      genePosteriors(j) += weights(i)*exp(logPosGeneProbs(j) - logDenom);
+    }
+  }
+  
   return genePosteriors;
 }
 
