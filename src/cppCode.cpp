@@ -79,7 +79,7 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   
   assert(q.size() == weights.size());
   int nGenes = max(geneIds);
-  
+  /*
   NumericVector marginalized_neg_probs(nGenes);
   NumericVector marginalized_pos_probs(nGenes);
   NumericVector marginalized_null_probs(nGenes);
@@ -107,7 +107,8 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   for(size_t g = 0; g < nGenes; g++){
     genePosteriors(g) = marginalized_pos_probs(g)/(marginalized_pos_probs(g) + marginalized_neg_probs(g) + marginalized_null_probs(g));
   }
-/*
+  */
+
   for(size_t i = 0; i < q.size(); i++){
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNegGeneProbs(nGenes);
@@ -139,7 +140,7 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   for(size_t j = 0; j < genePosteriors.size(); j++){
     genePosteriors(j) = Numerator(j)/Denominator(j);
   }
-  */
+  
   
   return genePosteriors;
 }
