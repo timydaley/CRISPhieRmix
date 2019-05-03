@@ -44,7 +44,7 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
                                             log_null_guide_probs,
                                             tau,
                                             nMesh = 100){
-  lowerLim = 0
+  lowerLim = tau
   upperLim = 1
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   nGenes = length(unique(geneIds))

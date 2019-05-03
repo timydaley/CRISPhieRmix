@@ -80,8 +80,34 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   assert(q.size() == weights.size());
   int nGenes = max(geneIds);
   
-  NumericVector Numerator(nGenes);
-  NumericVector Denominator(nGenes);
+  NumericVector marginalized_neg_probs(nGenes);
+  NumericVector marginalized_pos_probs(nGenes);
+  NumericVector marginalized_null_probs(nGenes);
+  for(size_t i = 0; i < q.size(); i++){
+    NumericVector logPosGeneProbs(nGenes);
+    NumericVector logNegGeneProbs(nGenes);
+    NumericVector logNullGeneProbs(nGenes);
+    for(size_t j = 0; j < geneIds.size(); j++){
+      logPosGeneProbs(geneIds(j) - 1) += log(q(i)*exp(log_pos_guide_probs(j))
+                                             + (1 - q(i))*exp(log_null_guide_probs(j)));
+      logNegGeneProbs(geneIds(j) - 1) += log(q(i)*exp(log_neg_guide_probs(j))
+                                             + (1 - q(i))*exp(log_null_guide_probs(j)));
+      logNullGeneProbs(geneIds(j) - 1) += log_null_guide_probs(j);
+    }
+    for(size_t g = 0; g < nGenes; g++){
+      marginalized_pos_probs(g) += exp(log(weights(i)) + log(tau_pos) - log(q(i))
+                                       + logPosGeneProbs(g))
+      marginalized_neg_probs(g) += exp(log(weights(i)) + log(tau_neg) - log(q(i))
+                                       + logNegGeneProbs(g))
+      marginalized_null_probs(g) += exp(log(weights(i)) + log(1 - (tau_pos + tau_neg)/q(i))
+                                        + logNullGeneProbs(g))
+    }
+  }
+  NumericVector genePosteriors(nGenes);
+  for(size_t g = 0; g < nGenes; g++){
+    genePosteriors(g) = marginalized_pos_probs(g)/(marginalized_pos_probs(g) + marginalized_neg_probs(g) + marginalized_null_probs)
+  }
+/*
   for(size_t i = 0; i < q.size(); i++){
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNegGeneProbs(nGenes);
@@ -113,7 +139,7 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   for(size_t j = 0; j < genePosteriors.size(); j++){
     genePosteriors(j) = Numerator(j)/Denominator(j);
   }
-  
+  */
   
   return genePosteriors;
 }
