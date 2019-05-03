@@ -420,6 +420,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       if(VERBOSE){
         cat("mu0 = ", params$muPos, ", ", params$muNeg, "\n")
         cat("sigma0 = ", params$sigmaPos, ", ", params$sigmaNeg, "\n")
+        cat("pq0 = ", params$pqPos, ", ", params$pqNeg, "\n")
         cat("fitting skewt mix\n")
       }
       skewtMix = skewtEM3comp(x, skewtFit = negCtrlFit, max_iter = max_iter, tol = tol,
