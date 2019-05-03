@@ -105,7 +105,7 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   }
   NumericVector genePosteriors(nGenes);
   for(size_t g = 0; g < nGenes; g++){
-    genePosteriors(g) = marginalized_pos_probs(g)/(marginalized_pos_probs(g) + marginalized_neg_probs(g) + marginalized_null_probs(g))
+    genePosteriors(g) = marginalized_pos_probs(g)/(marginalized_pos_probs(g) + marginalized_neg_probs(g) + marginalized_null_probs(g));
   }
 /*
   for(size_t i = 0; i < q.size(); i++){
