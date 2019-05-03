@@ -109,6 +109,8 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   }
   */
 
+  NumericVector Numerator(nGenes);
+  NumericVector Denominator(nGenes);
   for(size_t i = 0; i < q.size(); i++){
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNegGeneProbs(nGenes);
