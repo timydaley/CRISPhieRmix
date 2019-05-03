@@ -465,7 +465,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                           log_null_guide_probs = log_null_guide_probs,
                                                           tau_pos = skewtMix$pqNeg,
                                                           tau_neg = skewtMix$pqPos,
-                                                          nMesh = 100)
+                                                          nMesh = nMesh)
       if(VERBOSE){
         cat("computing FDRs \n")
       }
