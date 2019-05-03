@@ -96,11 +96,11 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
     }
     for(size_t g = 0; g < nGenes; g++){
       marginalized_pos_probs(g) += exp(log(weights(i)) + log(tau_pos) - log(q(i))
-                                       + logPosGeneProbs(g))
+                                       + logPosGeneProbs(g));
       marginalized_neg_probs(g) += exp(log(weights(i)) + log(tau_neg) - log(q(i))
-                                       + logNegGeneProbs(g))
+                                       + logNegGeneProbs(g));
       marginalized_null_probs(g) += exp(log(weights(i)) + log(1 - (tau_pos + tau_neg)/q(i))
-                                        + logNullGeneProbs(g))
+                                        + logNullGeneProbs(g));
     }
   }
   NumericVector genePosteriors(nGenes);
