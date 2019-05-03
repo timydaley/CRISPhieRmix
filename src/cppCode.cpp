@@ -37,6 +37,8 @@ NumericVector integratedExpectation2groups(NumericVector geneIds,
   int nGenes = max(geneIds);  
   
   NumericVector genePosteriors(nGenes);
+  NumericVector Numerator(nGenes);
+  NumericVector Denominator(nGenes);
   for(size_t i = 0; i < q.size(); i++){
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNullGeneProbs(nGenes);
@@ -54,8 +56,12 @@ NumericVector integratedExpectation2groups(NumericVector geneIds,
       y(0) = logPosGeneProbs(j);
       y(1) = logNullGeneProbs(j);
       double logDenom = logSumLogVec(y);
-      genePosteriors(j) += weights(i)*exp(logPosGeneProbs(j) - logDenom);
+      Denominator(j) += exp(log(weights(i)) + logDenom);
+      Numerator(j) += exp(log(weights(i)) + logPosGeneProbs(j));
     }
+  }
+  for(size_t j = 0; j < genePosteriors.size(); j++){
+    genePosteriors(j) = Numerator(j)/Denominator(j);
   }
 
   return genePosteriors;
@@ -74,7 +80,8 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
   assert(q.size() == weights.size());
   int nGenes = max(geneIds);
   
-  NumericVector genePosteriors(nGenes);
+  NumericVector Numerator(nGenes);
+  NumericVector Denominator(nGenes);
   for(size_t i = 0; i < q.size(); i++){
     NumericVector logPosGeneProbs(nGenes);
     NumericVector logNegGeneProbs(nGenes);
@@ -91,15 +98,22 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
                                                                log_null_guide_probs(j), q(i));
       logNullGeneProbs(geneIds(j) - 1) += log_null_guide_probs(j);
     }
-    for(size_t j = 0; j < genePosteriors.size(); j++){
+    
+    for(size_t j = 0; j < Numerator.size(); j++){
       NumericVector y(3);
       y(0) = logPosGeneProbs(j);
       y(1) = logNegGeneProbs(j);
       y(2) = logNullGeneProbs(j);
       double logDenom = logSumLogVec(y);
-      genePosteriors(j) += exp(log(weights(i)) + logPosGeneProbs(j) - logDenom);
+      Denominator(j) += exp(log(weights(i)) + logDenom);
+      Numerator(j) += exp(log(weights(i)) + logPosGeneProbs(j));
     }
   }
+  NumericVector genePosteriors(nGenes);
+  for(size_t j = 0; j < genePosteriors.size(); j++){
+    genePosteriors(j) = Numerator(j)/Denominator(j);
+  }
+  
   
   return genePosteriors;
 }
