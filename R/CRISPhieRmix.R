@@ -69,6 +69,13 @@ gaussQuadGeneExpectation3Groups <- function(x, geneIds,
   upperLim = 1
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   cat("points = ", quad.points.weights$nodes, "\n")
+  cat("weights = ", quad.points.weights$weights, "\n")
+  cat("tau_pos = ", tau_pos, "\n")
+  cat("tau_neg = ", tau_neg, "\n")
+  cat("head of log_pos_guide_probs = ", head(log_pos_guide_probs), "\n")
+  cat("head of log_neg_guide_probs = ", head(log_neg_guide_probs), "\n")
+  cat("head of log_null_guide_probs = ", head(log_null_guide_probs), "\n")
+
   nGenes = length(unique(geneIds))
   return(integratedExpectation3groups(as.numeric(geneIds), log_pos_guide_probs,
                                       log_neg_guide_probs, log_null_guide_probs,
