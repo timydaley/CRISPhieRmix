@@ -47,7 +47,7 @@ gaussQuadGeneExpectation2Groups <- function(x, geneIds,
   lowerLim = tau
   upperLim = 1
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
-  nGenes = length(unique(geneIds))
+  nGenes = length(levels(geneIds))
 
 #  EZ_g.mat = vapply(1:nMesh, function(i) quad.points.weights$weights[i]*geneExpectations2Group(x, geneIds, q = quad.points.weights$nodes[i], p = lowerLim/quad.points.weights$nodes[i], log_alt_guide_probs = log_alt_guide_probs, log_null_guide_probs = log_null_guide_probs), FUN.VALUE = double(nGenes))
   #EZ_g.mat = t(EZ_g.mat)
@@ -68,7 +68,7 @@ gaussQuadGeneExpectation3Groups <- function(x, geneIds,
   lowerLim = tau_pos + tau_neg
   upperLim = 1
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
-  nGenes = length(unique(geneIds))
+  nGenes = length(levels(geneIds))
   return(integratedExpectation3groups(as.numeric(geneIds), log_pos_guide_probs,
                                       log_neg_guide_probs, log_null_guide_probs,
                                       quad.points.weights$nodes, tau_pos, tau_neg,
@@ -82,7 +82,7 @@ gaussQuadGeneExpectation3Groups <- function(x, geneIds,
 #                                             nMesh = 100){
 #  q.grid = seq(from = lowerLim, to = upperLim, length = nMesh + 2)
 #  q.grid = q.grid[-c(1, length(q.grid))]
-#  nGenes = length(unique(geneIds))
+#  nGenes = length(levels(geneIds))
 #  EZ_g.mat = vapply(1:length(q.grid),
 #                    function(i) geneExpectations2Group(x, geneIds, q = q.grid[i], p = lowerLim/q.grid[i],
 #                                                       log_alt_guide_probs = log_alt_guide_probs,
@@ -479,7 +479,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       posFDR = sapply(posLocFDR, function(x) mean(posLocFDR[which(posLocFDR <= x)]))
 
       locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
-      mixFit = list(genes = unique(geneIds),
+      mixFit = list(genes = levels(geneIds),
                     locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
                     negGenePosteriors = negGenePosteriors,
@@ -540,7 +540,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                        log_null_guide_probs = log_null_guide_probs,
                                                        tau = skewtMix$pq, nMesh = 100)
       locfdr = sapply(1 - genePosteriors, function(y) max(0, y)) # sometimes returns -1e-16
-      mixFit = list(genes = unique(geneIds),
+      mixFit = list(genes = levels(geneIds),
                     locfdr = locfdr,
                     genePosteriors = genePosteriors,
                     FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
@@ -593,7 +593,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       posFDR = sapply(posLocFDR, function(x) mean(posLocFDR[which(posLocFDR <= x)]))
 
       locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
-      mixFit = list(genes = unique(geneIds),
+      mixFit = list(genes = levels(geneIds),
                     locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
                     negGenePosteriors = negGenePosteriors,
@@ -617,7 +617,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
                                                        tau = normalMixFit[["lambda"]][[2]], nMesh = 100)
       locfdr = sapply(1 - genePosteriors, function(y) max(0, y)) # sometimes returns -1e-16
 
-      mixFit = list(genes = unique(geneIds),
+      mixFit = list(genes = levels(geneIds),
                     locfdr = locfdr,
                     geneScores = genePosteriors,
                     FDR = sapply(locfdr, function(x) mean(locfdr[which(locfdr <= x)])),
