@@ -434,6 +434,9 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       }
 
       if(PLOT){
+        if(VERBOSE){
+          cat("plotting \n")
+        }
        b = seq(from = min(x) - 0.1, to = max(x) + 0.1, length = 101)
         hist(x, breaks = b, probability = TRUE, main = "mixture fit to observations")
         lines(b, skewtMix$pqPos*dnorm(b, skewtMix$muPos, skewtMix$sigmaPos) + skewtMix$pqNeg*dnorm(b, skewtMix$muNeg, skewtMix$sigmaNeg),
