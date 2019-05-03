@@ -47,7 +47,7 @@ NumericVector integratedExpectation2groups(NumericVector geneIds,
       logNullGeneProbs(geneIds(j) - 1) += log_null_guide_probs(j);
     }
     for(size_t g = 0; g < nGenes; g++){
-      marginalized_pos_probs(g) += exp(log(weights(i)) + log(tau) - log(q(i))
+      marginalized_alt_probs(g) += exp(log(weights(i)) + log(tau) - log(q(i))
                                        + logAltGeneProbs(g));
       marginalized_null_probs(g) += exp(log(weights(i)) + log(1 - tau/q(i))
                                         + logNullGeneProbs(g));
