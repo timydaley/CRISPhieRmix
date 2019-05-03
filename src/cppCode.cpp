@@ -80,9 +80,9 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
     NumericVector logNegGeneProbs(nGenes);
     NumericVector logNullGeneProbs(nGenes);
     for(size_t j = 0; j < logPosGeneProbs.size(); j++){
-      logPosGeneProbs(j) = log(tau_pos) - log(q(i));
-      logNegGeneProbs(j) = log(tau_neg) - log(q(i));
-      logNullGeneProbs(j) = log(1 - tau_pos/q(i) - tau_neg/q(i));
+      logPosGeneProbs(j) = log(tau_pos/q(i));
+      logNegGeneProbs(j) = log(tau_neg/q(i));
+      logNullGeneProbs(j) = log(1 - (tau_pos + tau_neg)/q(i));
     }
     for(size_t j = 0; j < geneIds.size(); j++){
       logPosGeneProbs(geneIds(j) - 1) += logSumWeightedAverage(log_pos_guide_probs(j),
@@ -97,7 +97,7 @@ NumericVector integratedExpectation3groups(NumericVector geneIds,
       y(1) = logNegGeneProbs(j);
       y(2) = logNullGeneProbs(j);
       double logDenom = logSumLogVec(y);
-      genePosteriors(j) += weights(i)*exp(logPosGeneProbs(j) - logDenom);
+      genePosteriors(j) += exp(log(weights(i)) + logPosGeneProbs(j) - logDenom);
     }
   }
   

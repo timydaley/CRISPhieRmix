@@ -65,8 +65,8 @@ gaussQuadGeneExpectation3Groups <- function(x, geneIds,
                                             log_null_guide_probs,
                                             tau_pos, tau_neg,
                                             nMesh = 100){
-  lowerLim = 0
-  upperLim = 1
+  lowerLim = tau_pos + tau_neg
+  upperLim = 1 - (tau_pos + tau_neg)
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
   cat("points = ", quad.points.weights$nodes, "\n")
   cat("weights = ", quad.points.weights$weights, "\n")
