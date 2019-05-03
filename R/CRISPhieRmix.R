@@ -68,6 +68,7 @@ gaussQuadGeneExpectation3Groups <- function(x, geneIds,
   lowerLim = 0
   upperLim = 1
   quad.points.weights = statmod::gauss.quad.prob(nMesh, dist = "uniform", l = lowerLim, u = upperLim)
+  cat("points = ", quad.points.weights$nodes, "\n")
   nGenes = length(unique(geneIds))
   return(integratedExpectation3groups(as.numeric(geneIds), log_pos_guide_probs,
                                       log_neg_guide_probs, log_null_guide_probs,
