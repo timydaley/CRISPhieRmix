@@ -474,7 +474,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       posLocFDR = 1 - posGenePosteriors
       posFDR = sapply(posLocFDR, function(x) mean(posLocFDR[which(posLocFDR <= x)]))
 
-      locfdr = 1 - posGenePosteriors - negGenePosteriors
+      locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
       mixFit = list(genes = unique(geneIds),
                     locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
@@ -588,7 +588,7 @@ CRISPhieRmix <- function(x, geneIds, negCtrl = NULL,
       posLocFDR = 1 - posGenePosteriors
       posFDR = sapply(posLocFDR, function(x) mean(posLocFDR[which(posLocFDR <= x)]))
 
-      locfdr = sapply(1 - posGenePosteriors - negGenePosteriors)
+      locfdr = sapply(1 - posGenePosteriors - negGenePosteriors, function(y) max(0, y))
       mixFit = list(genes = unique(geneIds),
                     locfdr = locfdr,
                     posGenePosteriors = posGenePosteriors,
