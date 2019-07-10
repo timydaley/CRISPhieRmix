@@ -12,6 +12,8 @@ CRISPhieRmix::CRISPhieRmix(x = log2fc, geneIds = geneIds, negCtrl = log2fc.negCt
 
 Full details on how to use CRISPhieRmix, with detailed instructions and examples can be found in the manual and vignette, in the vignette section. 
 
+If you use CRISPhieRmix please cite the paper CRISPhieRmix: a hierarchical mixture model for CRISPR pooled screens (https://genomebiology.biomedcentral.com/articles/10.1186/s13059-018-1538-6).
+
 If you have any questions or comments, please email me at tdaley@stanford.edu.  For any issues with the software, please create an issue through github with the Issues link above.  
 
 CRISPhieRmix is distributed with a GPL license, for full details see the file gpl-3.0.txt.
